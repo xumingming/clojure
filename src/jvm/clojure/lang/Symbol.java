@@ -15,13 +15,30 @@ package clojure.lang;
 import java.io.Serializable;
 import java.io.ObjectStreamException;
 
-
+/**
+ * symbol在clojure里面是其它东西的名字
+ * 
+ *  symbol的ns和name都被intern了。
+ *  symbol实现了IFn.invoke, 因此可以被调用
+ */
 public class Symbol extends AFn implements IObj, Comparable, Named, Serializable{
 //these must be interned strings!
+/**
+ * 该symbol所在名字空间的名字
+ */
 final String ns;
+/**
+ * 该symbol自己的名字
+ */
 final String name;
+/**
+ * 这个symbol的hash
+ */
 final int hash;
 final IPersistentMap _meta;
+/**
+ * 它缓存该Symbol的字符串形式(toString的返回结果)， 为了避免每次toString都要重新计算
+ */
 String _str;
 
 public String toString(){
@@ -51,11 +68,22 @@ static public Symbol create(String ns, String name) {
 static public Symbol create(String nsname) {
     return Symbol.intern(nsname);
 }
-    
+
+/**
+ * symbol的intern其实是把它的ns和name这两个字符串，然后new一个Symbol返回
+ * @param ns
+ * @param name
+ * @return
+ */
 static public Symbol intern(String ns, String name){
 	return new Symbol(ns == null ? null : ns.intern(), name.intern());
 }
 
+/**
+ * 参数nsname里面可能同时包含了ns和name，内部还是调用的两个参数那个intern
+ * @param nsname
+ * @return
+ */
 static public Symbol intern(String nsname){
 	int i = nsname.lastIndexOf('/');
 	if(i == -1 || nsname.equals("/"))
@@ -98,6 +126,9 @@ private Symbol(IPersistentMap meta, String ns, String name){
 	this.hash = Util.hashCombine(name.hashCode(), Util.hash(ns));
 }
 
+/**
+ * 先比较ns，再比较name
+ */
 public int compareTo(Object o){
 	Symbol s = (Symbol) o;
 	if(this.equals(o))
@@ -119,6 +150,9 @@ private Object readResolve() throws ObjectStreamException{
 	return intern(ns, name);
 }
 
+/**
+ * 这就是symbol为什么可以调用的原因
+ */
 public Object invoke(Object obj) {
 	return RT.get(obj, this);
 }
