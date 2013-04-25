@@ -17,9 +17,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class Var extends ARef implements IFn, IRef, Settable{
 
+/**
+ * 该类表示Var实际包含的值
+ */
 static class TBox{
-
+/**
+ * var所指向的值
+ */
 volatile Object val;
+/**
+ * 绑定的线程 -- 对于动态var
+ */
 final Thread thread;
 
 public TBox(Thread t, Object val){
@@ -44,11 +52,22 @@ static public class Unbound extends AFn{
 	}
 }
 
+/**
+ * Frame貌似是因为作用域而存在的
+ * 作用域没往下深一层，就会向Var.dvals里面push一个新的Frame，而新Frame的prev就是上一个Frame
+ * 这样在作用域往上退的时候只要pop掉前面那个Frame就可以了
+ */
 static class Frame{
 	//Var->TBox
+    /**
+     * 当前的所有绑定
+     */
 	Associative bindings;
 	//Var->val
 //	Associative frameBindings;
+	/**
+	 * 上一层作用域的所有绑定
+	 */
 	Frame prev;
 
 
@@ -70,6 +89,9 @@ static class Frame{
 
 }
 
+/**
+ * 保存的是动态var？
+ */
 static final ThreadLocal<Frame> dvals = new ThreadLocal<Frame>(){
 
 	protected Frame initialValue(){
@@ -77,6 +99,9 @@ static final ThreadLocal<Frame> dvals = new ThreadLocal<Frame>(){
 	}
 };
 
+/**
+ * rev应该是revision的意思，var没变更一次它加一
+ */
 static public volatile int rev = 0;
 
 static Keyword privateKey = Keyword.intern(null, "private");
@@ -86,15 +111,33 @@ static Keyword nameKey = Keyword.intern(null, "name");
 static Keyword nsKey = Keyword.intern(null, "ns");
 //static Keyword tagKey = Keyword.intern(null, "tag");
 
+/**
+ * 根绑定？
+ */
 volatile Object root;
-
+/**
+ * 是不是动态var
+ */
 volatile boolean dynamic = false;
+/**
+ * 这个var在当前线程是否有绑定？
+ */
 transient final AtomicBoolean threadBound;
+/**
+ * 这个var的名字
+ */
 public final Symbol sym;
+/**
+ * 这个var的名字空间
+ */
 public final Namespace ns;
 
 //IPersistentMap _meta;
 
+/**
+ * 获取当前线程的Frame
+ * @return
+ */
 public static Object getThreadBindingFrame(){
 	Frame f = dvals.get();
 	if(f != null)
@@ -102,6 +145,10 @@ public static Object getThreadBindingFrame(){
 	return new Frame();
 }
 
+/**
+ * 克隆当前线程的Frame
+ * @return
+ */
 public static Object cloneThreadBindingFrame(){
 	Frame f = dvals.get();
 	if(f != null)
@@ -109,6 +156,10 @@ public static Object cloneThreadBindingFrame(){
 	return new Frame();
 }
 
+/**
+ * 重置当前线程的Frame
+ * @param frame
+ */
 public static void resetThreadBindingFrame(Object frame){
 	dvals.set((Frame) frame);
 }
@@ -193,20 +244,28 @@ Var(Namespace ns, Symbol sym, Object root){
 	++rev;
 }
 
+/**
+ * 这个var有没有绑定到一个值？
+ * @return
+ */
 public boolean isBound(){
 	return hasRoot() || (threadBound.get() && dvals.get().bindings.containsKey(this));
 }
 
 final public Object get(){
+    // 如果没有当前线程绑定的值，那么返回根绑定
 	if(!threadBound.get())
 		return root;
+	// 否则返回线程绑定值
 	return deref();
 }
 
 final public Object deref(){
+    // 取出跟当前线程绑定的值
 	TBox b = getThreadBinding();
 	if(b != null)
 		return b.val;
+	// 作为fallback，返回根绑定
 	return root;
 }
 
@@ -258,6 +317,10 @@ public void setMacro() {
         }
 }
 
+/**
+ * 这个var所指向的是一个宏么？
+ * @return
+ */
 public boolean isMacro(){
 	return RT.booleanCast(meta().valAt(macroKey));
 }
@@ -266,18 +329,34 @@ public boolean isMacro(){
 //	_meta = _meta.assoc(privateKey, state);
 //}
 
+/**
+ * 这个var是public的么
+ * @return
+ */
 public boolean isPublic(){
 	return !RT.booleanCast(meta().valAt(privateKey));
 }
 
+/**
+ * 返回root
+ * @return
+ */
 final public Object getRawRoot(){
 		return root;
 }
 
+/**
+ * 返回tag
+ * @return
+ */
 public Object getTag(){
 	return meta().valAt(RT.TAG_KEY);
 }
 
+/**
+ * 设置tag
+ * @param tag
+ */
 public void setTag(Symbol tag) {
     try
         {
@@ -289,11 +368,19 @@ public void setTag(Symbol tag) {
         }
 }
 
+/**
+ * 这个var是否有根绑定
+ * @return
+ */
 final public boolean hasRoot(){
 	return !(root instanceof Unbound);
 }
 
 //binding root always clears macro flag
+/**
+ * 绑定一个新根绑定，并且去掉宏meta
+ * @param root
+ */
 synchronized public void bindRoot(Object root){
 	validate(getValidator(), root);
 	Object oldroot = this.root;
@@ -310,6 +397,10 @@ synchronized public void bindRoot(Object root){
     notifyWatches(oldroot,this.root);
 }
 
+/**
+ * 绑定一个新根绑定，不去掉宏meta
+ * @param root
+ */
 synchronized void swapRoot(Object root){
 	validate(getValidator(), root);
 	Object oldroot = this.root;
@@ -342,6 +433,10 @@ synchronized public Object alterRoot(IFn fn, ISeq args) {
 	return newRoot;
 }
 
+/**
+ * 作用域往下走的时候会调用这个方法
+ * @param bindings
+ */
 public static void pushThreadBindings(Associative bindings){
 	Frame f = dvals.get();
 	Associative bmap = f.bindings;
@@ -358,6 +453,9 @@ public static void pushThreadBindings(Associative bindings){
 	dvals.set(new Frame(bmap, f));
 }
 
+/**
+ * 作用域往上走的时候调用这个方法
+ */
 public static void popThreadBindings(){
 	Frame f = dvals.get();
 	if(f.prev == null)
@@ -365,6 +463,10 @@ public static void popThreadBindings(){
 	dvals.set(f.prev);
 }
 
+/**
+ * 获取当前线程的所有线程绑定
+ * @return
+ */
 public static Associative getThreadBindings(){
 	Frame f = dvals.get();
 	IPersistentMap ret = PersistentHashMap.EMPTY;
@@ -378,6 +480,10 @@ public static Associative getThreadBindings(){
 	return ret;
 }
 
+/**
+ * 获取这个var跟当前线程的绑定
+ * @return
+ */
 public final TBox getThreadBinding(){
 	if(threadBound.get())
 		{
@@ -388,14 +494,25 @@ public final TBox getThreadBinding(){
 	return null;
 }
 
+/**
+ * 把deref()的返回值强制转型为IFn类型
+ * @return
+ */
 final public IFn fn(){
 	return (IFn) deref();
 }
 
+/**
+ * 把deref()的返回值强制转型为IFn类型，然后再调用
+ * @return
+ */
 public Object call() {
 	return invoke();
 }
 
+/**
+ * 跟invoke一样，只是没有返回值
+ */
 public void run(){
 	try
 		{
