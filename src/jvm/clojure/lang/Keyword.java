@@ -23,10 +23,23 @@ import java.lang.ref.SoftReference;
 
 public class Keyword implements IFn, Comparable, Named, Serializable {
 
+/**
+ * 缓存了所有的keyword，key是keyword的名字，value是对应的keyword，用的是WeakReference，这样
+ * 在内存紧张的时候可以释放掉
+ */
 private static ConcurrentHashMap<Symbol, Reference<Keyword>> table = new ConcurrentHashMap();
 static final ReferenceQueue rq = new ReferenceQueue();
+/**
+ * keyword的名字
+ */
 public final Symbol sym;
+/**
+ * 该keyword的hash
+ */
 final int hash;
+/**
+ * toString缓存
+ */
 String _str;
 
 public static Keyword intern(Symbol sym){
