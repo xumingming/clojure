@@ -14,6 +14,9 @@ package clojure.lang;
 
 import java.io.Serializable;
 
+/**
+ * Cons是个比较巧妙的链表。一个Object类型的头，一个ISeq尾。
+ */
 final public class Cons extends ASeq implements Serializable {
 
 private final Object _first;
