@@ -21,12 +21,20 @@ public Delay(IFn fn){
 	this.val = null;
 }
 
+/**
+ * 静态方法，如果x是Delay，那么调用它的deref,否则直接返回
+ * @param x
+ * @return
+ */
 static public Object force(Object x) {
 	return (x instanceof Delay) ?
 	       ((Delay) x).deref()
 	       : x;
 }
 
+/**
+ * 如果还没实例化，那么调用fn来进行计算，执行完毕把fn值为null
+ */
 synchronized public Object deref() {
 	if(fn != null)
 		{
@@ -37,6 +45,7 @@ synchronized public Object deref() {
 }
 
 synchronized public boolean isRealized(){
+    // 当被实例化之后fn会被置为null
 	return fn == null;
 }
 }
