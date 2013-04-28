@@ -15,7 +15,13 @@ package clojure.lang;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+/**
+ * Ref
+ * 
+ * <ul>
+ *  <li>每个ref都有一个id，ref之间比较的时候比较的就是这个id</li>
+ * </ul>
+ */
 public class Ref extends ARef implements IFn, Comparable<Ref>, IRef{
     public int compareTo(Ref ref) {
         if(this.id == ref.id)
@@ -26,29 +32,62 @@ public class Ref extends ARef implements IFn, Comparable<Ref>, IRef{
             return 1;
     }
 
+/**
+ * 获取最小历史
+ * @return
+ */
 public int getMinHistory(){
 	return minHistory;
 }
 
+/**
+ * 设置最小历史
+ * @param minHistory
+ * @return
+ */
 public Ref setMinHistory(int minHistory){
 	this.minHistory = minHistory;
 	return this;
 }
 
+/**
+ * 获取最大历史
+ * @return
+ */
 public int getMaxHistory(){
 	return maxHistory;
 }
 
+/**
+ *  设置最大历史
+ * @param maxHistory
+ * @return
+ */
 public Ref setMaxHistory(int maxHistory){
 	this.maxHistory = maxHistory;
 	return this;
 }
 
 public static class TVal{
+    /**
+     * Ref的实际值
+     */
 	Object val;
+	/**
+	 * 记录这个TVal产生的“时间”点，会用来在transaction里面做版本比较的
+	 */
 	long point;
+	/**
+	 * 该TVal生成的时间戳
+	 */
 	long msecs;
+	/**
+	 * 前一条历史记录
+	 */
 	TVal prior;
+	/**
+	 * 下一条历史
+	 */
 	TVal next;
 
 	TVal(Object val, long point, long msecs, TVal prior){
@@ -70,15 +109,34 @@ public static class TVal{
 	}
 
 }
-
+/**
+ * Ref的当前值
+ */
 TVal tvals;
+/**
+ * 操作的出错次数
+ */
 final AtomicInteger faults;
+/**
+ * 控制对ref操作的锁
+ */
 final ReentrantReadWriteLock lock;
+/**
+ * transaction信息
+ */
 LockingTransaction.Info tinfo;
 //IFn validator;
+/**
+ * ref的唯一id
+ */
 final long id;
-
+/**
+ * 最小历史长度
+ */
 volatile int minHistory = 0;
+/**
+ * 最大历史长度
+ */
 volatile int maxHistory = 10;
 
 static final AtomicLong ids = new AtomicLong();
@@ -101,6 +159,7 @@ public Ref(Object initVal,IPersistentMap meta) {
 Object currentVal(){
 	try
 		{
+	    // 加读锁
 		lock.readLock().lock();
 		if(tvals != null)
 			return tvals.val;
@@ -108,14 +167,19 @@ Object currentVal(){
 		}
 	finally
 		{
+	    // 解锁
 		lock.readLock().unlock();
 		}
 }
 
 //*
-
+/**
+ * deref, 获取ref的值，如果当前有运行中的事务，那么获取的是这个ref在事务内的值；否则返回当前值 -- 也就是最后提交的值
+ */
 public Object deref(){
+    // 获取正在运行的transaction
 	LockingTransaction t = LockingTransaction.getRunning();
+	// 如果没有运行中的transaction，那么直接返回当前值
 	if(t == null)
 		return currentVal();
 	return t.doGet(this);
@@ -161,24 +225,51 @@ public Object deref(){
 //		}
 //}
 
+/**
+ * 设置ref的值: (ref-set ref val)
+ * @param val
+ * @return
+ */
 public Object set(Object val){
 	return LockingTransaction.getEx().doSet(this, val);
 }
 
+/**
+ * (commute ref fn args)
+ * 
+ * commute这个函数比较有意思，它是直接把ref设成: (fn ref args)并且返回，但是最终ref到底是什么值呢？
+ * 在事务提交的时候还会再调用(fn ref args)一遍，这次的ref基于的是ref的最新值
+ * @param fn
+ * @param args
+ * @return
+ */
 public Object commute(IFn fn, ISeq args) {
 	return LockingTransaction.getEx().doCommute(this, fn, args);
 }
 
+/**
+ * alter其实就是ref-set只不过提供的参数不是最终的newv，而是fn + args
+ * @param fn
+ * @param args
+ * @return
+ */
 public Object alter(IFn fn, ISeq args) {
 	LockingTransaction t = LockingTransaction.getEx();
 	return t.doSet(this, fn.applyTo(RT.cons(t.doGet(this), args)));
 }
 
+/**
+ * touch == ensure
+ */
 public void touch(){
 	LockingTransaction.getEx().doEnsure(this);
 }
 
 //*/
+/**
+ * 当前ref有bound吗？
+ * @return
+ */
 boolean isBound(){
 	try
 		{
@@ -191,7 +282,9 @@ boolean isBound(){
 		}
 }
 
-
+/**
+ * 把历史信息都干掉：prior == this next == this
+ */
 public void trimHistory(){
 	try
 		{
@@ -226,20 +319,30 @@ int histCount(){
 	else
 		{
 		int count = 0;
+		// 遍历整个tvals链条，来看看一共有多少历史记录
 		for(TVal tv = tvals.next;tv != tvals;tv = tv.next)
 			count++;
 		return count;
 		}
 }
-
+/**
+ * deref
+ * @return
+ */
 final public IFn fn(){
 	return (IFn) deref();
 }
 
+/**
+ * deref
+ */
 public Object call() {
 	return invoke();
 }
 
+/**
+ * deref
+ */
 public void run(){
 	try
 		{
@@ -251,6 +354,9 @@ public void run(){
 		}
 }
 
+/**
+ * deref
+ */
 public Object invoke() {
 	return fn().invoke();
 }

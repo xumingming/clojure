@@ -14,14 +14,37 @@ package clojure.lang;
 
 public interface IRef extends IDeref{
 
+    /**
+     * 设置validator函数
+     * @param vf
+     */
 	void setValidator(IFn vf);
 
+	/**
+	 * 获取validator
+	 * @return
+	 */
     IFn getValidator();
 
+    /**
+     * 查出所有的监视器
+     * @return
+     */
     IPersistentMap getWatches();
-
+    
+    /**
+     * 添加监视器
+     * @param key
+     * @param callback
+     * @return
+     */
     IRef addWatch(Object key, IFn callback);
 
+    /**
+     * 去除一个监视器
+     * @param key
+     * @return
+     */
     IRef removeWatch(Object key);
 
 }
