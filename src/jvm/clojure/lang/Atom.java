@@ -14,6 +14,10 @@ package clojure.lang;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * atom保证原子地对所有的状态改变进行执行
+ * 
+ */
 final public class Atom extends ARef{
 final AtomicReference state;
 
@@ -30,6 +34,11 @@ public Object deref(){
 	return state.get();
 }
 
+/**
+ * 有点像ref的commute, newv = (f oldv)
+ * @param f
+ * @return
+ */
 public Object swap(IFn f) {
 	for(; ;)
 		{
@@ -44,6 +53,12 @@ public Object swap(IFn f) {
 		}
 }
 
+/**
+ * 有点像ref的commute, newv = (f v arg)
+ * @param f
+ * @param arg
+ * @return
+ */
 public Object swap(IFn f, Object arg) {
 	for(; ;)
 		{
@@ -58,6 +73,13 @@ public Object swap(IFn f, Object arg) {
 		}
 }
 
+/**
+ * 有点像ref的commute, newv = (f oldv arg1 arg2)
+ * @param f
+ * @param arg1
+ * @param arg2
+ * @return
+ */
 public Object swap(IFn f, Object arg1, Object arg2) {
 	for(; ;)
 		{
@@ -72,6 +94,14 @@ public Object swap(IFn f, Object arg1, Object arg2) {
 		}
 }
 
+/**
+ * 有点像ref的commute, newv = (f oldv x y args)
+ * @param f
+ * @param x
+ * @param y
+ * @param args
+ * @return
+ */
 public Object swap(IFn f, Object x, Object y, ISeq args) {
 	for(; ;)
 		{
@@ -86,6 +116,12 @@ public Object swap(IFn f, Object x, Object y, ISeq args) {
 		}
 }
 
+/**
+ * compareAndSet newv
+ * @param oldv
+ * @param newv
+ * @return
+ */
 public boolean compareAndSet(Object oldv, Object newv){
 	validate(newv);
 	boolean ret = state.compareAndSet(oldv, newv);
@@ -94,6 +130,11 @@ public boolean compareAndSet(Object oldv, Object newv){
 	return ret;
 }
 
+/**
+ * 无条件reset
+ * @param newval
+ * @return
+ */
 public Object reset(Object newval){
 	Object oldval = state.get();
 	validate(newval);
