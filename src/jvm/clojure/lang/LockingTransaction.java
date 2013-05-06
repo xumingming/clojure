@@ -21,9 +21,17 @@ import java.util.concurrent.CountDownLatch;
 
 @SuppressWarnings({"SynchronizeOnNonFinalField"})
 public class LockingTransaction{
-
+/**
+ * 事务的最大重试次数
+ */
 public static final int RETRY_LIMIT = 10000;
+/**
+ * 获取锁的最大等待时间100ms
+ */
 public static final int LOCK_WAIT_MSECS = 100;
+/**
+ * 干预的最大等待时间
+ */
 public static final long BARGE_WAIT_NANOS = 10 * 1000000;
 //public static int COMMUTE_RETRY_LIMIT = 10;
 
@@ -32,7 +40,9 @@ static final int COMMITTING = 1;
 static final int RETRY = 2;
 static final int KILLED = 3;
 static final int COMMITTED = 4;
-
+/**
+ * 当前线程的事务
+ */
 final static ThreadLocal<LockingTransaction> transaction = new ThreadLocal<LockingTransaction>();
 
 
@@ -42,7 +52,13 @@ static class RetryEx extends Error{
 static class AbortException extends Exception{
 }
 
+/**
+ * transaction信息 
+ */
 public static class Info{
+    /**
+     * 事务的状态
+     */
 	final AtomicInteger status;
 	final long startPoint;
 	final CountDownLatch latch;
@@ -54,6 +70,10 @@ public static class Info{
 		this.latch = new CountDownLatch(1);
 	}
 
+	/**
+	 * 状态是RUNNING或者COMMITING
+	 * @return
+	 */
 	public boolean running(){
 		int s = status.get();
 		return s == RUNNING || s == COMMITTING;
@@ -71,6 +91,9 @@ static class CFn{
 }
 //total order on transactions
 //transactions will consume a point for init, for each retry, and on commit if writing
+/**
+ * point相当于版本、打点，每个transaction在init，重试，提交的时候这个point都是升高。
+ */
 final private static AtomicLong lastPoint = new AtomicLong();
 
 void getReadPoint(){
@@ -81,6 +104,10 @@ long getCommitPoint(){
 	return lastPoint.incrementAndGet();
 }
 
+/**
+ * 
+ * @param status
+ */
 void stop(int status){
 	if(info != null)
 		{
@@ -99,18 +126,39 @@ void stop(int status){
 
 
 Info info;
+/**
+ * readPoint的值在每次事务开始的时候变更
+ */
 long readPoint;
+/**
+ * 事务开始的point
+ */
 long startPoint;
 long startTime;
 final RetryEx retryex = new RetryEx();
 final ArrayList<Agent.Action> actions = new ArrayList<Agent.Action>();
+/**
+ * 所有ref以及它们所对应的值
+ */
 final HashMap<Ref, Object> vals = new HashMap<Ref, Object>();
+/**
+ * 被调用了ref-set的ref集合
+ */
 final HashSet<Ref> sets = new HashSet<Ref>();
+/**
+ * 一个commit其实就是一个函数调用，每个ref可以对应多个commute
+ */
 final TreeMap<Ref, ArrayList<CFn>> commutes = new TreeMap<Ref, ArrayList<CFn>>();
 
+/**
+ * 所有上了读锁的ref
+ */
 final HashSet<Ref> ensures = new HashSet<Ref>();   //all hold readLock
 
-
+/**
+ * 尝试获取ref上的写锁
+ * @param ref
+ */
 void tryWriteLock(Ref ref){
 	try
 		{
@@ -124,6 +172,11 @@ void tryWriteLock(Ref ref){
 }
 
 //returns the most recent val
+/**
+ * 给ref加写锁以获取ref的最新值. 加写锁之后还会看看是不是在当前事务开始之后有别的事务提交过。
+ * @param ref
+ * @return
+ */
 Object lock(Ref ref){
 	//can't upgrade readLock, so release it
 	releaseIfEnsured(ref);
@@ -158,6 +211,11 @@ Object lock(Ref ref){
 		}
 }
 
+/**
+ * stop & throw retryex
+ * @param refinfo
+ * @return
+ */
 private Object blockAndBail(Info refinfo){
 //stop prior to blocking
 	stop(RETRY);
@@ -172,6 +230,10 @@ private Object blockAndBail(Info refinfo){
 	throw retryex;
 }
 
+/**
+ * 干掉ref对应的ensure，并unlockref上的读锁
+ * @param ref
+ */
 private void releaseIfEnsured(Ref ref){
 	if(ensures.contains(ref))
 		{
@@ -185,10 +247,19 @@ void abort() throws AbortException{
 	throw new AbortException();
 }
 
+/**
+ * barge有没有超时
+ * @return
+ */
 private boolean bargeTimeElapsed(){
 	return System.nanoTime() - startTime > BARGE_WAIT_NANOS;
 }
 
+/**
+ * 人工干预？把别的事务的refinfo跟当前事务比，如果当前事务开始的比较早，那么把别的事务干掉，latch countdown。
+ * @param refinfo
+ * @return
+ */
 private boolean barge(Info refinfo){
 	boolean barged = false;
 	//if this transaction is older
@@ -202,6 +273,10 @@ private boolean barge(Info refinfo){
 	return barged;
 }
 
+/**
+ * 获取当前正在运行的transaction
+ * @return
+ */
 static LockingTransaction getEx(){
 	LockingTransaction t = transaction.get();
 	if(t == null || t.info == null)
@@ -209,10 +284,18 @@ static LockingTransaction getEx(){
 	return t;
 }
 
+/**
+ * 当前是否有transaction在运行？
+ * @return
+ */
 static public boolean isRunning(){
 	return getRunning() != null;
 }
 
+/**
+ * 获取当前正在运行的transaction
+ * @return
+ */
 static LockingTransaction getRunning(){
 	LockingTransaction t = transaction.get();
 	if(t == null || t.info == null)
@@ -220,6 +303,12 @@ static LockingTransaction getRunning(){
 	return t;
 }
 
+/**
+ * 在一个transaction内调用一个函数
+ * @param fn
+ * @return
+ * @throws Exception
+ */
 static public Object runInTransaction(Callable fn) throws Exception{
 	LockingTransaction t = transaction.get();
 	if(t == null)
@@ -231,6 +320,9 @@ static public Object runInTransaction(Callable fn) throws Exception{
 	return t.run(fn);
 }
 
+/**
+ * notify信息，包含发生变化的ref，它的新值和旧值
+ */
 static class Notify{
 	final public Ref ref;
 	final public Object oldval;
@@ -246,7 +338,13 @@ static class Notify{
 Object run(Callable fn) throws Exception{
 	boolean done = false;
 	Object ret = null;
+	/**
+	 * 所有上了写锁的ref
+	 */
 	ArrayList<Ref> locked = new ArrayList<Ref>();
+	/**
+	 * 所有要发的notify消息
+	 */
 	ArrayList<Notify> notify = new ArrayList<Notify>();
 
 	for(int i = 0; !done && i < RETRY_LIMIT; i++)
@@ -262,34 +360,51 @@ Object run(Callable fn) throws Exception{
 			info = new Info(RUNNING, startPoint);
 			ret = fn.call();
 			//make sure no one has killed us before this point, and can't from now on
+			// 这里先compareset一下，确保没有别的线程已经把我们干掉了(改了status状态), 一旦状态改成COMMITING之后别人就干不了我们了
 			if(info.status.compareAndSet(RUNNING, COMMITTING))
 				{
 				for(Map.Entry<Ref, ArrayList<CFn>> e : commutes.entrySet())
 					{
 					Ref ref = e.getKey();
+					// 对于要set的，直接跳过
 					if(sets.contains(ref)) continue;
 					
 					boolean wasEnsured = ensures.contains(ref);
 					//can't upgrade readLock, so release it
+					// 释放读锁
 					releaseIfEnsured(ref);
+					// 上写锁
 					tryWriteLock(ref);
 					locked.add(ref);
-					if(wasEnsured && ref.tvals != null && ref.tvals.point > readPoint)
+					
+					// 对于ensure的ref，但是在snapshot之后又有人写了，那么重试
+					if(wasEnsured && ref.tvals != null && ref. tvals.point > readPoint)
 						throw retryex;
 
 					Info refinfo = ref.tinfo;
+					// 如果有别的线程的事务里面在改这个ref，那么协调一下：
+					//   1) 如果别的事务比当前事务年轻，那么干掉它。
+					//   2) 否则当前事务重试
+					// 这里是为了确保没有别的事务在操作这个ref
 					if(refinfo != null && refinfo != info && refinfo.running())
 						{
 						if(!barge(refinfo))
 							throw retryex;
 						}
 					Object val = ref.tvals == null ? null : ref.tvals.val;
+					// 把这个ref的值put进去，好后面取出来操作
 					vals.put(ref, val);
+					
+					// 执行到这里我们可以确保没有人在修改这个ref，那么
+					// 依次调用所有的commute函数来修改这个ref的值
 					for(CFn f : e.getValue())
 						{
 						vals.put(ref, f.fn.applyTo(RT.cons(vals.get(ref), f.args)));
 						}
 					}
+				
+				
+				// 对于所有的sets里面的ref，上写锁，并加入locked
 				for(Ref ref : sets)
 					{
 					tryWriteLock(ref);
@@ -297,12 +412,15 @@ Object run(Callable fn) throws Exception{
 					}
 
 				//validate and enqueue notifications
+				// 到这里为止，ref的值都写完了，校验一下ref的新值
 				for(Map.Entry<Ref, Object> e : vals.entrySet())
 					{
 					Ref ref = e.getKey();
 					ref.validate(ref.getValidator(), e.getValue());
 					}
 
+				// 到这里为止，所有的值都算出来了，所有的ref的写锁都上了。
+				// 已经没有什么客户端代码需要调用了。
 				//at this point, all values calced, all refs to be written locked
 				//no more client code to be called
 				long msecs = System.currentTimeMillis();
@@ -331,6 +449,7 @@ Object run(Callable fn) throws Exception{
 						ref.tvals.point = commitPoint;
 						ref.tvals.msecs = msecs;
 						}
+					// 如果有监视器，那么准备发送notify消息
 					if(ref.getWatches().count() > 0)
 						notify.add(new Notify(ref, oldval, newval));
 					}
@@ -345,11 +464,13 @@ Object run(Callable fn) throws Exception{
 			}
 		finally
 			{
+		    // 开所有的写锁
 			for(int k = locked.size() - 1; k >= 0; --k)
 				{
 				locked.get(k).lock.writeLock().unlock();
 				}
 			locked.clear();
+			// 开所有的读锁
 			for(Ref r : ensures)
 				{
 				r.lock.readLock().unlock();
@@ -360,10 +481,12 @@ Object run(Callable fn) throws Exception{
 				{
 				if(done) //re-dispatch out of transaction
 					{
+				    // 发送notify消息
 					for(Notify n : notify)
 						{
 						n.ref.notifyWatches(n.oldval, n.newval);
 						}
+					// dispatch所有的action
 					for(Agent.Action action : actions)
 						{
 						Agent.dispatchAction(action);
@@ -382,10 +505,29 @@ Object run(Callable fn) throws Exception{
 	return ret;
 }
 
+/**
+ * 添加一个新的action
+ * @param action
+ */
 public void enqueue(Agent.Action action){
 	actions.add(action);
 }
 
+/**
+ * 获取ref的值
+ * 
+ * <ul>
+ *  <li>如果当前事务不在运行，那么抛出重试错误</li>
+ *  <li>如果vals有ref的值，那么直接取出返回</li>
+ *  <li>否则加一个读锁</li>
+ *  <li>如果ref里面的值是null，那么抛出异常</li>
+ *  <li>遍历ref的值历史链条，直到找到一个值的point比当前事务的readPoint要小，那么返回这个值. 也就是说获取的值是事务内的最新值</li>
+ *  <li>解除读锁</li>
+ *  <li>程序如果执行到这里而没有返回说明没有找到值，那么ref.faults加一，抛出重试错误</li>
+ * </ul>
+ * @param ref
+ * @return
+ */
 Object doGet(Ref ref){
 	if(!info.running())
 		throw retryex;
@@ -412,10 +554,19 @@ Object doGet(Ref ref){
 	throw retryex;
 
 }
-
+/**
+ * 给一个ref设值 ref-set
+ * 
+ * 如果sets里面没有ref会把ref加到sets里面
+ * 把ref val放到vals里面
+ * @param ref
+ * @param val
+ * @return
+ */
 Object doSet(Ref ref, Object val){
 	if(!info.running())
 		throw retryex;
+	// commute之后就不能调用set了
 	if(commutes.containsKey(ref))
 		throw new IllegalStateException("Can't set after commute");
 	if(!sets.contains(ref))
@@ -427,6 +578,11 @@ Object doSet(Ref ref, Object val){
 	return val;
 }
 
+/**
+ * ensure == (ref-set ref @ref) 但是并发性能更好。它会上一个读锁
+ * 
+ * @param ref
+ */
 void doEnsure(Ref ref){
 	if(!info.running())
 		throw retryex;
@@ -435,6 +591,7 @@ void doEnsure(Ref ref){
 	ref.lock.readLock().lock();
 
 	//someone completed a write after our snapshot
+	// 如果在我们事务开始之后有人写过这个ref，那么我们释放读锁，并且抛出重试异常
 	if(ref.tvals != null && ref.tvals.point > readPoint) {
         ref.lock.readLock().unlock();
         throw retryex;
@@ -443,10 +600,12 @@ void doEnsure(Ref ref){
 	Info refinfo = ref.tinfo;
 
 	//writer exists
+	// 如果有别的transaction正在对这个ref进行操作，那么我们释放读锁并且停止当前transaction
 	if(refinfo != null && refinfo.running())
 		{
 		ref.lock.readLock().unlock();
 
+		// 有其他线程在改这个ref，那么停止当前事务并重试
 		if(refinfo != info) //not us, ensure is doomed
 			{
 			blockAndBail(refinfo); 
@@ -456,6 +615,13 @@ void doEnsure(Ref ref){
 		ensures.add(ref);
 }
 
+/**
+ * 如果vals里面没有ref的值，那么先把ref的值加入vals
+ * @param ref
+ * @param fn
+ * @param args
+ * @return
+ */
 Object doCommute(Ref ref, IFn fn, ISeq args) {
 	if(!info.running())
 		throw retryex;
@@ -476,7 +642,9 @@ Object doCommute(Ref ref, IFn fn, ISeq args) {
 	ArrayList<CFn> fns = commutes.get(ref);
 	if(fns == null)
 		commutes.put(ref, fns = new ArrayList<CFn>());
+	// 这里把要调用的函数跟参数保存起来了
 	fns.add(new CFn(fn, args));
+	// 这里怎么又直接调用fn了
 	Object ret = fn.applyTo(RT.cons(vals.get(ref), args));
 	vals.put(ref, ret);
 	return ret;
