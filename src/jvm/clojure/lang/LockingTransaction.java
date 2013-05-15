@@ -162,8 +162,11 @@ final HashSet<Ref> ensures = new HashSet<Ref>();   //all hold readLock
 void tryWriteLock(Ref ref){
 	try
 		{
-		if(!ref.lock.writeLock().tryLock(LOCK_WAIT_MSECS, TimeUnit.MILLISECONDS))
+		if(!ref.lock.writeLock().tryLock(LOCK_WAIT_MSECS, TimeUnit.MILLISECONDS)) 
+		    {
+		    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#tryWriteLock: retry because tryWriteLock timeout");
 			throw retryex;
+		    }
 		}
 	catch(InterruptedException e)
 		{
@@ -187,8 +190,11 @@ Object lock(Ref ref){
 		tryWriteLock(ref);
 		unlocked = false;
 
-		if(ref.tvals != null && ref.tvals.point > readPoint)
+		if(ref.tvals != null && ref.tvals.point > readPoint) {
+		    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#lock: retry because ref modified after this tx begins");
+            
 			throw retryex;
+		}
 		Info refinfo = ref.tinfo;
 
 		//write lock conflict
@@ -349,6 +355,7 @@ Object run(Callable fn) throws Exception{
 
 	for(int i = 0; !done && i < RETRY_LIMIT; i++)
 		{
+	    System.out.println("[tx:" + this.hashCode() + "] round:" + i);
 		try
 			{
 			getReadPoint();
@@ -374,21 +381,30 @@ Object run(Callable fn) throws Exception{
 					// 释放读锁
 					releaseIfEnsured(ref);
 					// 上写锁
-					tryWriteLock(ref);
+					try {
+					    tryWriteLock(ref);
+					} catch (RetryEx e1) {
+					    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because cannt get write lock");
+					    throw e1;
+					}
 					locked.add(ref);
 					
 					// 对于ensure的ref，但是在snapshot之后又有人写了，那么重试
-					if(wasEnsured && ref.tvals != null && ref. tvals.point > readPoint)
+					if(wasEnsured && ref.tvals != null && ref. tvals.point > readPoint) {
+					    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because ref is ensured but modified by other tx");
 						throw retryex;
+					}
 
 					Info refinfo = ref.tinfo;
 					// 如果有别的线程的事务里面在改这个ref，那么协调一下：
+					// refinfo != null 意味着别的事务对这个ref调用了ref-set或者alter
 					//   1) 如果别的事务比当前事务年轻，那么干掉它。
 					//   2) 否则当前事务重试
 					// 这里是为了确保没有别的事务在操作这个ref
 					if(refinfo != null && refinfo != info && refinfo.running())
 						{
 						if(!barge(refinfo))
+						    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because other tx are modifing the ref");
 							throw retryex;
 						}
 					Object val = ref.tvals == null ? null : ref.tvals.val;
@@ -407,7 +423,12 @@ Object run(Callable fn) throws Exception{
 				// 对于所有的sets里面的ref，上写锁，并加入locked
 				for(Ref ref : sets)
 					{
-					tryWriteLock(ref);
+                    try {
+                        tryWriteLock(ref);
+                    } catch (RetryEx e1) {
+                        System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because cannt get write lock");
+                        throw e1;
+                    }
 					locked.add(ref);
 					}
 
@@ -572,7 +593,12 @@ Object doSet(Ref ref, Object val){
 	if(!sets.contains(ref))
 		{
 		sets.add(ref);
+		try {
 		lock(ref);
+		} catch (RetryEx e) {
+		    System.out.println("[tx:" + this.hashCode() + "] LockingTransaction#doSet: retry because cannt get write lock");
+		    throw e;
+		}
 		}
 	vals.put(ref, val);
 	return val;
@@ -594,6 +620,7 @@ void doEnsure(Ref ref){
 	// 如果在我们事务开始之后有人写过这个ref，那么我们释放读锁，并且抛出重试异常
 	if(ref.tvals != null && ref.tvals.point > readPoint) {
         ref.lock.readLock().unlock();
+        System.out.println("[tx:" + this.hashCode() + "] LockingTransaction#doEnsure: retry because ref modified after this tx begins");
         throw retryex;
     }
 
