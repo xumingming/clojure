@@ -80,6 +80,13 @@ static public boolean pcequiv(Object k1, Object k2){
 	return ((IPersistentCollection)k2).equiv(k1);
 }
 
+/**
+ * 判断两个对象是否相等
+ * 
+ * @param k1
+ * @param k2
+ * @return
+ */
 static public boolean equals(Object k1, Object k2){
 	if(k1 == k2)
 		return true;
@@ -96,6 +103,12 @@ static public Class classOf(Object x){
 	return null;
 }
 
+/**
+ * 对任意两个对象进行比较
+ * @param k1
+ * @param k2
+ * @return
+ */
 static public int compare(Object k1, Object k2){
 	if(k1 == k2)
 		return 0;
@@ -110,6 +123,11 @@ static public int compare(Object k1, Object k2){
 	return -1;
 }
 
+/**
+ * 求任意对象的hashCode，如果是null返回0， 否则返回hashCode
+ * @param o
+ * @return
+ */
 static public int hash(Object o){
 	if(o == null)
 		return 0;
@@ -143,10 +161,22 @@ static public boolean isInteger(Object x){
 			|| x instanceof BigInteger;
 }
 
+/**
+ * 奇葩的方法，直接返回ret。第二个参数貌似是为了local clearing
+ * @param ret
+ * @param nil
+ * @return
+ */
 static public Object ret1(Object ret, Object nil){
 		return ret;
 }
 
+/**
+ * 同样奇葩的方法，直接返回ret
+ * @param ret
+ * @param nil
+ * @return
+ */
 static public ISeq ret1(ISeq ret, Object nil){
 		return ret;
 }

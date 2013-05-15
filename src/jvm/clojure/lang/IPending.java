@@ -10,6 +10,13 @@
 
 package clojure.lang;
 
+/**
+ * 延迟计算相关的一个类
+ */
 public interface IPending{
+    /**
+     * 惰性序列是否实例化了？
+     * @return
+     */
     boolean isRealized();
 }

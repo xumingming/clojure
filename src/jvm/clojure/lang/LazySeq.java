@@ -14,6 +14,9 @@ package clojure.lang;
 
 import java.util.*;
 
+/**
+ * 惰性序列。构造函数传入的可以是一个函数，也可以是一个ISeq
+ */
 public final class LazySeq extends Obj implements ISeq, Sequential, List, IPending, IHashEq{
 
 private IFn fn;
@@ -30,10 +33,17 @@ private LazySeq(IPersistentMap meta, ISeq s){
 	this.s = s;
 }
 
+// 创建一个新的有meta的一模一样的lazyseq
 public Obj withMeta(IPersistentMap meta){
 	return new LazySeq(meta, seq());
 }
 
+/**
+ * 返回惰性序列的值
+ * 1) 如果fn不为null，并且它计算出来的值也不会null，那么返回它的返回值
+ * 2) 否则返回构造函数传进来的Iseq
+ * @return
+ */
 final synchronized Object sval(){
 	if(fn != null)
 		{
@@ -56,6 +66,9 @@ final synchronized Object sval(){
 	return s;
 }
 
+/**
+ * seq
+ */
 final synchronized public ISeq seq(){
 	sval();
 	if(sv != null)
@@ -71,6 +84,9 @@ final synchronized public ISeq seq(){
 	return s;
 }
 
+/**
+ * 返回lazyseq的个数
+ */
 public int count(){
 	int c = 0;
 	for(ISeq s = seq(); s != null; s = s.next())
@@ -78,6 +94,9 @@ public int count(){
 	return c;
 }
 
+/**
+ * first
+ */
 public Object first(){
 	seq();
 	if(s == null)
@@ -85,6 +104,9 @@ public Object first(){
 	return s.first();
 }
 
+/**
+ * next
+ */
 public ISeq next(){
 	seq();
 	if(s == null)
@@ -92,6 +114,9 @@ public ISeq next(){
 	return s.next();	
 }
 
+/**
+ * more
+ */
 public ISeq more(){
 	seq();
 	if(s == null)
@@ -99,14 +124,24 @@ public ISeq more(){
 	return s.more();
 }
 
+/**
+ * cons
+ */
 public ISeq cons(Object o){
 	return RT.cons(o, seq());
 }
 
+/**
+ * empty
+ */
 public IPersistentCollection empty(){
 	return PersistentList.EMPTY;
 }
 
+/**
+ * equiv
+ *
+ */
 public boolean equiv(Object o){
 	return equals(o);
 }
@@ -249,7 +284,9 @@ public boolean addAll(int index, Collection c){
 	throw new UnsupportedOperationException();
 }
 
-
+/**
+ * 是否实例化了？
+ */
 synchronized public boolean isRealized(){
 	return fn == null;
 }

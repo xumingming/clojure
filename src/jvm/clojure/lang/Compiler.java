@@ -35,69 +35,227 @@ import org.objectweb.asm.util.CheckClassAdapter;
 //*/
 
 public class Compiler implements Opcodes{
-
+/**
+ * symbol: def
+ */
 static final Symbol DEF = Symbol.intern("def");
+/**
+ * symbol: loop*
+ */
 static final Symbol LOOP = Symbol.intern("loop*");
+/**
+ * symbol: recur
+ */
 static final Symbol RECUR = Symbol.intern("recur");
+/**
+ * symbol: if
+ */
 static final Symbol IF = Symbol.intern("if");
+/**
+ * let*
+ */
 static final Symbol LET = Symbol.intern("let*");
+/**
+ * letfn*
+ */
 static final Symbol LETFN = Symbol.intern("letfn*");
+/**
+ * symbol: do
+ */
 static final Symbol DO = Symbol.intern("do");
+/**
+ * fn*
+ */
 static final Symbol FN = Symbol.intern("fn*");
+/**
+ * symbol: quote
+ */
 static final Symbol QUOTE = Symbol.intern("quote");
+/**
+ * symbol: var
+ */
 static final Symbol THE_VAR = Symbol.intern("var");
+/**
+ * symbol: .
+ */
 static final Symbol DOT = Symbol.intern(".");
+/**
+ * symbol: set!
+ */
 static final Symbol ASSIGN = Symbol.intern("set!");
 //static final Symbol TRY_FINALLY = Symbol.intern("try-finally");
+/**
+ * symbol: try
+ */
 static final Symbol TRY = Symbol.intern("try");
+/**
+ * symbol: catch
+ */
 static final Symbol CATCH = Symbol.intern("catch");
+/**
+ * symbol: finally
+ */
 static final Symbol FINALLY = Symbol.intern("finally");
+/**
+ * symbol: throw
+ */
 static final Symbol THROW = Symbol.intern("throw");
+/**
+ * symbol: monitor-enter
+ */
 static final Symbol MONITOR_ENTER = Symbol.intern("monitor-enter");
+/**
+ * symbol: monitor-exit
+ */
 static final Symbol MONITOR_EXIT = Symbol.intern("monitor-exit");
+/**
+ * symbol: clojure.core/import*
+ */
 static final Symbol IMPORT = Symbol.intern("clojure.core", "import*");
 //static final Symbol INSTANCE = Symbol.intern("instance?");
+/**
+ * symbol: deftype*
+ */
 static final Symbol DEFTYPE = Symbol.intern("deftype*");
+/**
+ * symbol: case*
+ */
 static final Symbol CASE = Symbol.intern("case*");
 
 //static final Symbol THISFN = Symbol.intern("thisfn");
+/**
+ * symbol: Class
+ */
 static final Symbol CLASS = Symbol.intern("Class");
+/**
+ * symbol: new
+ */
 static final Symbol NEW = Symbol.intern("new");
+/**
+ * symbol: this
+ */
 static final Symbol THIS = Symbol.intern("this");
+/**
+ * symbol: reify*
+ */
 static final Symbol REIFY = Symbol.intern("reify*");
 //static final Symbol UNQUOTE = Symbol.intern("unquote");
 //static final Symbol UNQUOTE_SPLICING = Symbol.intern("unquote-splicing");
 //static final Symbol SYNTAX_QUOTE = Symbol.intern("clojure.core", "syntax-quote");
+/**
+ * symbol: clojure.core/list
+ */
 static final Symbol LIST = Symbol.intern("clojure.core", "list");
+/**
+ * symbol: clojure.core/hash-map
+ */
 static final Symbol HASHMAP = Symbol.intern("clojure.core", "hash-map");
+/**
+ * symbol: clojure.core/vector
+ */
 static final Symbol VECTOR = Symbol.intern("clojure.core", "vector");
+/**
+ * symbol: clojure.core/identity
+ */
 static final Symbol IDENTITY = Symbol.intern("clojure.core", "identity");
 
+/**
+ * symbol: &
+ */
 static final Symbol _AMP_ = Symbol.intern("&");
+/**
+ * symbol: clojure.lang.ISeq
+ */
 static final Symbol ISEQ = Symbol.intern("clojure.lang.ISeq");
 
+/**
+ * keyword: inline
+ */
 static final Keyword inlineKey = Keyword.intern(null, "inline");
+/**
+ * keyword: inline-arities
+ */
 static final Keyword inlineAritiesKey = Keyword.intern(null, "inline-arities");
+/**
+ * keyword: static
+ */
 static final Keyword staticKey = Keyword.intern(null, "static");
+/**
+ * keyword: arglists
+ */
 static final Keyword arglistsKey = Keyword.intern(null, "arglists");
+/**
+ * symbol: invokeStatic
+ */
 static final Symbol INVOKE_STATIC = Symbol.intern("invokeStatic");
 
+/**
+ * keyword: volatile
+ */
 static final Keyword volatileKey = Keyword.intern(null, "volatile");
+/**
+ * keyword: implements
+ */
 static final Keyword implementsKey = Keyword.intern(null, "implements");
+/**
+ * compile__stub
+ */
 static final String COMPILE_STUB_PREFIX = "compile__stub";
 
+/**
+ * keyword: protocol
+ */
 static final Keyword protocolKey = Keyword.intern(null, "protocol");
+/**
+ * keyword: on
+ */
 static final Keyword onKey = Keyword.intern(null, "on");
+/**
+ * keyword: dynamic
+ */
 static Keyword dynamicKey = Keyword.intern("dynamic");
-
+/**
+ * symbol: ns
+ */
 static final Symbol NS = Symbol.intern("ns");
+/**
+ * symbol: in-ns
+ */
 static final Symbol IN_NS = Symbol.intern("in-ns");
 
 //static final Symbol IMPORT = Symbol.intern("import");
 //static final Symbol USE = Symbol.intern("use");
 
 //static final Symbol IFN = Symbol.intern("clojure.lang", "IFn");
-
+/**
+ * specials:
+ * <ul>
+ *  <li>def</li>
+ *  <li>loop</li>
+ *  <li>recur</li>
+ *  <li>if</li>
+ *  <li>case</li>
+ *  <li>let</li>
+ *  <li>letfn</li>
+ *  <li>do</li>
+ *  <li>fn</li>
+ *  <li>quote</li>
+ *  <li>the_var</li>
+ *  <li>import</li>
+ *  <li>.</li>
+ *  <li>set!</li>
+ *  <li>deftype</li>
+ *  <li>reify</li>
+ *  <li>try</li>
+ *  <li>throw</li>
+ *  <li>monitor-enter</li>
+ *  <li>monitor-exit</li>
+ *  <li>catch</li>
+ *  <li>finally</li>
+ *  <li>new</li>
+ *  <li>&</li>
+ * </ul>
+ */
 static final public IPersistentMap specials = PersistentHashMap.create(
 		DEF, new DefExpr.Parser(),
 		LOOP, new LetExpr.Parser(),
@@ -133,23 +291,74 @@ NEW, new NewExpr.Parser(),
 _AMP_, null
 );
 
+/**
+ * 函数必须参数的个数
+ */
 private static final int MAX_POSITIONAL_ARITY = 20;
+/**
+ * Type: Object
+ */
 private static final Type OBJECT_TYPE;
+/**
+ * Type: Keyword
+ */
 private static final Type KEYWORD_TYPE = Type.getType(Keyword.class);
+/**
+ * Type: Var
+ */
 private static final Type VAR_TYPE = Type.getType(Var.class);
+/**
+ * Type: Symbol
+ */
 private static final Type SYMBOL_TYPE = Type.getType(Symbol.class);
 //private static final Type NUM_TYPE = Type.getType(Num.class);
+/**
+ * Type: IFn
+ */
 private static final Type IFN_TYPE = Type.getType(IFn.class);
+/**
+ * Type: AFunction
+ */
 private static final Type AFUNCTION_TYPE = Type.getType(AFunction.class);
+/**
+ * Type: RT
+ */
 private static final Type RT_TYPE = Type.getType(RT.class);
+/**
+ * Type: Numbers
+ */
 private static final Type NUMBERS_TYPE = Type.getType(Numbers.class);
+/**
+ * Type: Class
+ */
 final static Type CLASS_TYPE = Type.getType(Class.class);
+/**
+ * Type: Namespace
+ */
 final static Type NS_TYPE = Type.getType(Namespace.class);
+/**
+ * Type: Util
+ */
 final static Type UTIL_TYPE = Type.getType(Util.class);
+/**
+ * Type: Reflector
+ */
 final static Type REFLECTOR_TYPE = Type.getType(Reflector.class);
+/**
+ * Type: Throwable
+ */
 final static Type THROWABLE_TYPE = Type.getType(Throwable.class);
+/**
+ * Type: Boolean
+ */
 final static Type BOOLEAN_OBJECT_TYPE = Type.getType(Boolean.class);
+/**
+ * Type: IPersistentMap
+ */
 final static Type IPERSISTENTMAP_TYPE = Type.getType(IPersistentMap.class);
+/**
+ * Type: IObj
+ */
 final static Type IOBJ_TYPE = Type.getType(IObj.class);
 
 private static final Type[][] ARG_TYPES;
@@ -178,36 +387,76 @@ static
 
 
 //symbol->localbinding
+/**
+ * 所有的本地绑定：symbol => LocalBinding
+ */
 static final public Var LOCAL_ENV = Var.create(null).setDynamic();
 
 //vector<localbinding>
+/**
+ * loop-recur的时候每次要绑定的本地绑定
+ */
 static final public Var LOOP_LOCALS = Var.create().setDynamic();
 
 //Label
+/**
+ * <pre>
+ * LOOP_LABEL
+ * </pre>
+ */
 static final public Var LOOP_LABEL = Var.create().setDynamic();
 
 //vector<object>
+/**
+ * <pre>
+ * vector<object>
+ * </pre>
+ */
 static final public Var CONSTANTS = Var.create().setDynamic();
 
 //IdentityHashMap
+/**
+ * <pre>
+ * IdentityHashMap
+ * </pre>
+ */
 static final public Var CONSTANT_IDS = Var.create().setDynamic();
 
 //vector<keyword>
+/**
+ * <pre>
+ * vector<keyword>
+ * </pre>
+ */
 static final public Var KEYWORD_CALLSITES = Var.create().setDynamic();
 
 //vector<var>
+/**
+ * <pre>
+ * vector<var>
+ * </pre>
+ */
 static final public Var PROTOCOL_CALLSITES = Var.create().setDynamic();
 
 //set<var>
 static final public Var VAR_CALLSITES = Var.create().setDynamic();
 
 //keyword->constid
+/**
+ * keyword->constid
+ */
 static final public Var KEYWORDS = Var.create().setDynamic();
 
 //var->constid
+/**
+ * var => constid
+ */
 static final public Var VARS = Var.create().setDynamic();
 
 //FnFrame
+/**
+ * 当前正在解析(parse)的方法
+ */
 static final public Var METHOD = Var.create(null).setDynamic();
 
 //null or not
@@ -219,10 +468,16 @@ static final public Var NO_RECUR = Var.create(null).setDynamic();
 static final public Var LOADER = Var.create().setDynamic();
 
 //String
+/**
+ * var: clojure.core/*source-path*
+ */
 static final public Var SOURCE = Var.intern(Namespace.findOrCreate(Symbol.intern("clojure.core")),
                                             Symbol.intern("*source-path*"), "NO_SOURCE_FILE").setDynamic();
 
 //String
+/**
+ * var: clojure.core/*file*  源代码路径
+ */
 static final public Var SOURCE_PATH = Var.intern(Namespace.findOrCreate(Symbol.intern("clojure.core")),
                                                  Symbol.intern("*file*"), "NO_SOURCE_PATH").setDynamic();
 
@@ -230,21 +485,43 @@ static final public Var SOURCE_PATH = Var.intern(Namespace.findOrCreate(Symbol.i
 static final public Var COMPILE_PATH = Var.intern(Namespace.findOrCreate(Symbol.intern("clojure.core")),
                                                   Symbol.intern("*compile-path*"), null).setDynamic();
 //boolean
+/**
+ * 是否编译clj文件？
+ */
 static final public Var COMPILE_FILES = Var.intern(Namespace.findOrCreate(Symbol.intern("clojure.core")),
                                                    Symbol.intern("*compile-files*"), Boolean.FALSE).setDynamic();
 
+/**
+ * var: clojure.core/instance?
+ */
 static final public Var INSTANCE = Var.intern(Namespace.findOrCreate(Symbol.intern("clojure.core")),
                                             Symbol.intern("instance?"));
 
+/**
+ * var: clojure.core/add-annotations
+ */
 static final public Var ADD_ANNOTATIONS = Var.intern(Namespace.findOrCreate(Symbol.intern("clojure.core")),
                                             Symbol.intern("add-annotations"));
 
+/**
+ * keyword: disable-locals-clearing
+ */
 static final public Keyword disableLocalsClearingKey = Keyword.intern("disable-locals-clearing");
+/**
+ * keyword: elide-meta
+ */
 static final public Keyword elideMetaKey = Keyword.intern("elide-meta");
-
+/**
+ * var: clojure.core/*compiler-options*
+ */
 static final public Var COMPILER_OPTIONS = Var.intern(Namespace.findOrCreate(Symbol.intern("clojure.core")),
                                                       Symbol.intern("*compiler-options*"), null).setDynamic();
 
+/**
+ * 获取编译参数
+ * @param k
+ * @return
+ */
 static public Object getCompilerOption(Keyword k){
 	return RT.get(COMPILER_OPTIONS.deref(),k);
 }
@@ -264,6 +541,9 @@ static Object elideMeta(Object m){
     }
 
 //Integer
+/**
+ * var: 行号
+ */
 static final public Var LINE = Var.create(0).setDynamic();
 
 //Integer
@@ -271,6 +551,9 @@ static final public Var LINE_BEFORE = Var.create(0).setDynamic();
 static final public Var LINE_AFTER = Var.create(0).setDynamic();
 
 //Integer
+/**
+ * 是用来记录本地变量的序号的，是个Integer
+ */
 static final public Var NEXT_LOCAL_NUM = Var.create(0).setDynamic();
 
 //Integer
@@ -282,21 +565,49 @@ static final public Var COMPILE_STUB_CLASS = Var.create(null).setDynamic();
 
 
 //PathNode chain
+/**
+ * PathNode chain
+ */
 static final public Var CLEAR_PATH = Var.create(null).setDynamic();
 
 //tail of PathNode chain
+/**
+ * tail of PathNode chain
+ */
 static final public Var CLEAR_ROOT = Var.create(null).setDynamic();
 
 //LocalBinding -> Set<LocalBindingExpr>
+/**
+ * LocalBinding -> Set&lt;LocalBindingExpr>
+ */
 static final public Var CLEAR_SITES = Var.create(null).setDynamic();
 
+    /**
+     * 用来标示form的上下文，是STATEMENT? EXPRESSION? RETURN? EVAL?
+     */
     public enum C{
+    /**
+     * 值是不需要的
+     */
 	STATEMENT,  //value ignored
+	/**
+	 * 需要返回值
+	 */
 	EXPRESSION, //value required
+	/**
+	 * tail position
+	 */
 	RETURN,      //tail position relative to enclosing recur frame
+	/**
+	 * eval
+	 */
 	EVAL
 }
 
+/**
+ * Clojure会先利用LispReader把文本代码解析程form，然后再把form解析成Expr。到这里就差不多了，
+ * 如果要eval，就调用它的eval方法，如果要编译成class文件就调用emit方法 
+ */
 interface Expr{
 	Object eval() ;
 
@@ -307,6 +618,9 @@ interface Expr{
 	Class getJavaClass() ;
 }
 
+/**
+ * 无对应java类的Expr
+ */
 public static abstract class UntypedExpr implements Expr{
 
 	public Class getJavaClass(){
@@ -318,14 +632,27 @@ public static abstract class UntypedExpr implements Expr{
 	}
 }
 
+/**
+ * parser的职责是把一个form解析成一个表达式(Expr)
+ * 
+ */
 interface IParser{
 	Expr parse(C context, Object form) ;
 }
-
+/**
+ * 是不是special form
+ * @param sym
+ * @return
+ */
 static boolean isSpecial(Object sym){
 	return specials.containsKey(sym);
 }
 
+/**
+ * 把symbol解析成对应的symbol。这个symbol可能是一个class，也可能是一个var。
+ * @param sym
+ * @return
+ */
 static Symbol resolveSymbol(Symbol sym){
 	//already qualified or classname?
 	if(sym.name.indexOf('.') > 0)
@@ -351,18 +678,51 @@ static Symbol resolveSymbol(Symbol sym){
 
 }
 
+/**
+ * def表达式: (def a 1) 
+ */
 static class DefExpr implements Expr{
 	public final Var var;
+    /**
+     * 初始值
+     */
 	public final Expr init;
+    /**
+     * meta信息
+     */
 	public final Expr meta;
+    /**
+     * 是否提供了初始值？
+     */
 	public final boolean initProvided;
+    /**
+     * 定义的是不是一个动态var
+     */
 	public final boolean isDynamic;
 	public final String source;
+    /**
+     * 定义所在行
+     */ 
 	public final int line;
+    /**
+     * bindRoot
+     */
 	final static Method bindRootMethod = Method.getMethod("void bindRoot(Object)");
+    /**
+     * setTag
+     */
 	final static Method setTagMethod = Method.getMethod("void setTag(clojure.lang.Symbol)");
+    /**
+     * setMeta
+     */
 	final static Method setMetaMethod = Method.getMethod("void setMeta(clojure.lang.IPersistentMap)");
+    /**
+     * setDynamic
+     */
 	final static Method setDynamicMethod = Method.getMethod("clojure.lang.Var setDynamic(boolean)");
+    /**
+     * Symbol.intern()
+     */
 	final static Method symintern = Method.getMethod("clojure.lang.Symbol intern(String, String)");
 
 	public DefExpr(String source, int line, Var var, Expr init, Expr meta, boolean initProvided, boolean isDynamic){
@@ -390,6 +750,7 @@ static class DefExpr implements Expr{
     public Object eval() {
 		try
 			{
+                // 如果提供了初始值的话，那么把初始值Expr eval一下并且绑定到var的根绑定上去
 			if(initProvided)
 				{
 //			if(init instanceof FnExpr && ((FnExpr) init).closes.count()==0)
@@ -397,12 +758,14 @@ static class DefExpr implements Expr{
 //			else
 				var.bindRoot(init.eval());
 				}
+            // 如果meta不为空的话，把meta的expr eval一下设置到var上去
 			if(meta != null)
 				{
                 IPersistentMap metaMap = (IPersistentMap) meta.eval();
                 if (initProvided || true)//includesExplicitMetadata((MapExpr) meta))
 				    var.setMeta((IPersistentMap) meta.eval());
 				}
+            // 返回这个var
 			return var.setDynamic(isDynamic);
 			}
 		catch(Throwable e)
@@ -414,6 +777,9 @@ static class DefExpr implements Expr{
 			}
 	}
 
+    /**
+     * emit def的字节码出来
+     */
 	public void emit(C context, ObjExpr objx, GeneratorAdapter gen){
 		objx.emitVar(gen, var);
 		if(isDynamic)
@@ -451,6 +817,9 @@ static class DefExpr implements Expr{
 		return true;
 	}
 
+	/**
+	 * def出来的是Var
+	 */
 	public Class getJavaClass(){
 		return Var.class;
 	}
@@ -522,6 +891,10 @@ static class DefExpr implements Expr{
 	}
 }
 
+/**
+ * assign == (set! target val)
+ * 
+ */
 public static class AssignExpr implements Expr{
 	public final AssignableExpr target;
 	public final Expr val;
@@ -561,9 +934,21 @@ public static class AssignExpr implements Expr{
 }
 
 public static class VarExpr implements Expr, AssignableExpr{
+    /**
+     * var本身
+     */
 	public final Var var;
+	/**
+	 * var的tag
+	 */
 	public final Object tag;
+	/**
+     * Method: Object Var#get()
+     */
 	final static Method getMethod = Method.getMethod("Object get()");
+	/**
+	 * Method: Object Var#set(Object)
+	 */
 	final static Method setMethod = Method.getMethod("Object set(Object)");
 
 	public VarExpr(Var var, Symbol tag){
@@ -641,6 +1026,9 @@ public static class TheVarExpr implements Expr{
 	}
 }
 
+/**
+ * keyword表达式
+ */
 public static class KeywordExpr extends LiteralExpr{
 	public final Keyword k;
 
@@ -714,25 +1102,70 @@ public static class ImportExpr implements Expr{
 	}
 }
 
+/**
+ * 那些东西算literal？
+ * <ul>
+ *  <li>string</li>
+ *  <li>boolean</li>
+ *  <li>number</li>
+ *  <li>nil</li>
+ *  <li>ConstantExpr</li>
+ *  <li>keyword</li>
+ * </ul>
+ */
 public static abstract class LiteralExpr implements Expr{
 	abstract Object val();
 
+	/**
+	 * (eval)调用的应该就是这个方法吧。
+	 */
 	public Object eval(){
 		return val();
 	}
 }
 
+/**
+ * 可以被赋值的表达式 
+ */
 static interface AssignableExpr{
+    /**
+     * 发射
+     * @param val
+     * @return
+     */
 	Object evalAssign(Expr val) ;
 
 	void emitAssign(C context, ObjExpr objx, GeneratorAdapter gen, Expr val);
 }
 
+/**
+ * 这个表达式“有可能”({@link canEmitPrimitive})是primitive类型，即基本类型。
+ * 如果确实是的话，那么在emit的时候让它emit基本类型而非包装类型的字节码
+ */
 static public interface MaybePrimitiveExpr extends Expr{
+    /**
+     * 能发射基本类型字节码吗？
+     * @return
+     */
 	public boolean canEmitPrimitive();
+	/**
+	 * 发射非包装类型
+	 * @param context
+	 * @param objx
+	 * @param gen
+	 */
 	public void emitUnboxed(C context, ObjExpr objx, GeneratorAdapter gen);
 }
 
+/**
+ * 所谓的host表达式指的是下面这些表达式
+ * <ul>
+ *  <li>(. x fieldname-sym)</li>
+ *  <li>(. x 0-ary-method)</li>
+ *  <li>(. x methodname-sym args+)</li>
+ *  <li>(. x (methodname-sym args?))</li>
+ * </ul>
+ */
 static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 	final static Type BOOLEAN_TYPE = Type.getType(Boolean.class);
 	final static Type CHAR_TYPE = Type.getType(Character.class);
@@ -819,6 +1252,12 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 	}
 
 	//*/
+	/**
+	 * 发射非包装类型的参数，也就是Boolean而非boolean
+	 * @param objx
+	 * @param gen
+	 * @param paramType
+	 */
 	public static void emitUnboxArg(ObjExpr objx, GeneratorAdapter gen, Class paramType){
 		if(paramType.isPrimitive())
 			{
@@ -896,12 +1335,15 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 			//static target must be symbol, either fully.qualified.Classname or Classname that has been imported
 			int line = (Integer) LINE.deref();
 			String source = (String) SOURCE.deref();
+			// 看看这个target是Class还是instance，如果是class
+			// 那么调用的static方法，否则就是实例方法
 			Class c = maybeClass(RT.second(form), false);
 			//at this point c will be non-null if static
 			Expr instance = null;
 			if(c == null)
 				instance = analyze(context == C.EVAL ? context : C.EXPRESSION, RT.second(form));
 
+			// 是要调用一个字段还是要调用一个方法
 			boolean maybeField = RT.length(form) == 3 && (RT.third(form) instanceof Symbol);
 
 			if(maybeField && !(((Symbol)RT.third(form)).name.charAt(0) == '-'))
@@ -913,18 +1355,22 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 					maybeField = Reflector.getMethods(instance.getJavaClass(), 0, munge(sym.name), false).size() == 0;
 				}
 
+			// 把字段的sym找出来
 			if(maybeField)    //field
 				{
 				Symbol sym = (((Symbol)RT.third(form)).name.charAt(0) == '-') ?
 					Symbol.intern(((Symbol)RT.third(form)).name.substring(1))
 						:(Symbol) RT.third(form);
+				// 把字段sym的tag找出来
 				Symbol tag = tagOf(form);
+				// 是静态字段
 				if(c != null) {
 					return new StaticFieldExpr(line, c, munge(sym.name), tag);
 				} else
+				    // 是实例字段
 					return new InstanceFieldExpr(line, instance, munge(sym.name), tag);
 				}
-			else
+			else  // 这是个方法
 				{
 				ISeq call = (ISeq) ((RT.third(form) instanceof ISeq) ? RT.third(form) : RT.next(RT.next(form)));
 				if(!(RT.first(call) instanceof Symbol))
@@ -932,6 +1378,7 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 				Symbol sym = (Symbol) RT.first(call);
 				Symbol tag = tagOf(form);
 				PersistentVector args = PersistentVector.EMPTY;
+				// 把所有的参数解析出来
 				for(ISeq s = RT.next(call); s != null; s = s.next())
 					args = args.cons(analyze(context == C.EVAL ? context : C.EXPRESSION, s.first()));
 				if(c != null)
@@ -942,13 +1389,21 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 		}
 	}
 
+	/**
+	 * 找出form所对应的class对象
+	 * @param form
+	 * @param stringOk
+	 * @return
+	 */
 	private static Class maybeClass(Object form, boolean stringOk) {
+	    // 如果是Class类型的直接返回
 		if(form instanceof Class)
 			return (Class) form;
 		Class c = null;
 		if(form instanceof Symbol)
 			{
 			Symbol sym = (Symbol) form;
+			// 如果sym有名字空间，那么不可能是类名
 			if(sym.ns == null) //if ns-qualified can't be classname
 				{
 				if(Util.equals(sym,COMPILE_STUB_SYM.get()))
@@ -957,7 +1412,9 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 					c = RT.classForName(sym.name);
 				else
 					{
+				    // 找出这个sym所对应的对象
 					Object o = currentNS().getMapping(sym);
+					// 如果这个对象是Class，那么直接返回
 					if(o instanceof Class)
 						c = (Class) o;
 					else
@@ -1000,6 +1457,11 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 		 return className;
 	 }
  */
+	/**
+	 * 把tag转成对应的class
+	 * @param tag
+	 * @return
+	 */
 	static Class tagToClass(Object tag) {
 		Class c = maybeClass(tag, true);
 		if(tag instanceof Symbol)
@@ -1052,14 +1514,41 @@ static public abstract class HostExpr implements Expr, MaybePrimitiveExpr{
 static abstract class FieldExpr extends HostExpr{
 }
 
+/**
+ * 类实例字段表达式。类实例的字段可以被赋值，因此实现了{@link AssignableExpr}
+ */
 static class InstanceFieldExpr extends FieldExpr implements AssignableExpr{
+    /**
+     * 谁的实例字段
+     */
 	public final Expr target;
+	/**
+	 * 这个类的Class对象
+	 */
 	public final Class targetClass;
+	/**
+	 * 哪个field？
+	 */
 	public final java.lang.reflect.Field field;
+	/**
+	 * field的名字是啥？
+	 */
 	public final String fieldName;
+	/**
+	 * 哪一行？
+	 */
 	public final int line;
+	/**
+	 * tag ?
+	 */
 	public final Symbol tag;
+	/**
+	 * Object invokeNoArgInstanceMember(Object,String)
+	 */
 	final static Method invokeNoArgInstanceMember = Method.getMethod("Object invokeNoArgInstanceMember(Object,String)");
+	/**
+	 * Object setInstanceField(Object,String,Object)
+	 */
 	final static Method setInstanceFieldMethod = Method.getMethod("Object setInstanceField(Object,String,Object)");
 
 
@@ -1161,12 +1650,27 @@ static class InstanceFieldExpr extends FieldExpr implements AssignableExpr{
 
 static class StaticFieldExpr extends FieldExpr implements AssignableExpr{
 	//final String className;
+    /**
+     * 字段名字
+     */
 	public final String fieldName;
+	/**
+	 * 哪个类
+	 */
 	public final Class c;
+	/**
+	 * 字段类，field是通过fieldName算出来的。
+	 */
 	public final java.lang.reflect.Field field;
+	/**
+	 * tag
+	 */
 	public final Symbol tag;
 //	final static Method getStaticFieldMethod = Method.getMethod("Object getStaticField(String,String)");
 //	final static Method setStaticFieldMethod = Method.getMethod("Object setStaticField(String,String,Object)");
+	/**
+	 * 哪一行
+	 */
 	final int line;
 
 	public StaticFieldExpr(int line, Class c, String fieldName, Symbol tag) {
@@ -1285,6 +1789,12 @@ static Class maybeJavaClass(Collection<Expr> exprs){
 
 
 static abstract class MethodExpr extends HostExpr{
+    /**
+     * 把PersistentVector里面装的参数发射成一个数组形式
+     * @param args
+     * @param objx
+     * @param gen
+     */
 	static void emitArgsAsArray(IPersistentVector args, ObjExpr objx, GeneratorAdapter gen){
 		gen.push(args.count());
 		gen.newArray(OBJECT_TYPE);
@@ -1352,10 +1862,22 @@ static abstract class MethodExpr extends HostExpr{
 }
 
 static class InstanceMethodExpr extends MethodExpr{
+    /**
+     * 调用的是谁的方法
+     */
 	public final Expr target;
+	/**
+	 * 方法名
+	 */
 	public final String methodName;
+	/**
+	 *  参数是什么
+	 */
 	public final IPersistentVector args;
 	public final String source;
+	/**
+	 * 哪一行在调用？
+	 */
 	public final int line;
 	public final Symbol tag;
 	public final java.lang.reflect.Method method;
@@ -1374,6 +1896,7 @@ static class InstanceMethodExpr extends MethodExpr{
 		this.tag = tag;
 		if(target.hasJavaClass() && target.getJavaClass() != null)
 			{
+		    // 找出这个类的这个方法的所有签名
 			List methods = Reflector.getMethods(target.getJavaClass(), args.count(), methodName, false);
 			if(methods.isEmpty())
 				method = null;
@@ -1385,19 +1908,24 @@ static class InstanceMethodExpr extends MethodExpr{
 					{
 					ArrayList<Class[]> params = new ArrayList();
 					ArrayList<Class> rets = new ArrayList();
+					// 统计出这个方法名的所有签名形式
 					for(int i = 0; i < methods.size(); i++)
 						{
 						java.lang.reflect.Method m = (java.lang.reflect.Method) methods.get(i);
 						params.add(m.getParameterTypes());
 						rets.add(m.getReturnType());
 						}
+					// 找出匹配的方法签名
 					methodidx = getMatchingParams(methodName, params, args, rets);
 					}
+				// 找到对应的method对象
 				java.lang.reflect.Method m =
 						(java.lang.reflect.Method) (methodidx >= 0 ? methods.get(methodidx) : null);
+				// 若果确实是可以调用的
 				if(m != null && !Modifier.isPublic(m.getDeclaringClass().getModifiers()))
 					{
 					//public method of non-public class, try to find it in hierarchy
+				    // 找到对应的方法，因为这可能是在父类里面实现的方法
 					m = Reflector.getAsMethodOfPublicBase(m.getDeclaringClass(), m);
 					}
 				method = m;
@@ -1490,6 +2018,7 @@ static class InstanceMethodExpr extends MethodExpr{
 			}
 		else
 			{
+		    // 调用静态方法
 			target.emit(C.EXPRESSION, objx, gen);
 			gen.push(methodName);
 			emitArgsAsArray(args, objx, gen);
@@ -1513,7 +2042,9 @@ static class InstanceMethodExpr extends MethodExpr{
 	}
 }
 
-
+/**
+ * 静态方法表达式
+ */
 static class StaticMethodExpr extends MethodExpr{
 	//final String className;
 	public final Class c;
@@ -1725,6 +2256,9 @@ static class UnresolvedVarExpr implements Expr{
 	}
 }
 
+/**
+ * 数字表达式
+ */
 static class NumberExpr extends LiteralExpr implements MaybePrimitiveExpr{
 	final Number n;
 	public final int id;
@@ -1785,6 +2319,10 @@ static class NumberExpr extends LiteralExpr implements MaybePrimitiveExpr{
 	}
 }
 
+/**
+ * ConstantExpr是针对常量的，或者说字面量的。表达式里面的所有的元素都是字面量的。
+ * 
+ */
 static class ConstantExpr extends LiteralExpr{
 	//stuff quoted vals in classloader at compile time, pull out at runtime
 	//this won't work for static compilation...
@@ -1872,6 +2410,9 @@ static class NilExpr extends LiteralExpr{
 
 final static NilExpr NIL_EXPR = new NilExpr();
 
+/**
+ * 这应该是最简单的Expr了吧？表示布尔值的
+ */
 static class BooleanExpr extends LiteralExpr{
 	public final boolean val;
 
@@ -1880,6 +2421,9 @@ static class BooleanExpr extends LiteralExpr{
 		this.val = val;
 	}
 
+	/**
+	 * 返回这个Expr的值
+	 */
 	Object val(){
 		return val ? RT.T : RT.F;
 	}
@@ -1895,10 +2439,16 @@ static class BooleanExpr extends LiteralExpr{
 			}
 	}
 
+	/**
+	 * 有没有对应的java类
+	 */
 	public boolean hasJavaClass(){
 		return true;
 	}
 
+	/**
+	 * 对应的java类就是Boolean
+	 */
 	public Class getJavaClass() {
 		return Boolean.class;
 	}
@@ -2482,8 +3032,17 @@ public static class NewExpr implements Expr{
 
 }
 
+/**
+ * meta表达式
+ */
 public static class MetaExpr implements Expr{
+    /**
+     * 对应的表达式
+     */
 	public final Expr expr;
+	/**
+	 * meta信息
+	 */
 	public final Expr meta;
 	final static Type IOBJ_TYPE = Type.getType(IObj.class);
 	final static Method withMetaMethod = Method.getMethod("clojure.lang.IObj withMeta(clojure.lang.IPersistentMap)");
@@ -2519,6 +3078,9 @@ public static class MetaExpr implements Expr{
 	}
 }
 
+/**
+ * if表达式
+ */
 public static class IfExpr implements Expr, MaybePrimitiveExpr{
 	public final Expr testExpr;
 	public final Expr thenExpr;
@@ -2660,6 +3222,10 @@ public static class IfExpr implements Expr, MaybePrimitiveExpr{
 	}
 }
 
+/**
+ * Clojure的symbol里面可以有各种奇怪的符号，但是这些符号在最终的JVM字节码里面是不允许的，所以
+ * Clojure在生成class文件的时候会把这些符号替换成别的字母代替，下面就是对应关系
+ */
 static final public IPersistentMap CHAR_MAP =
 		PersistentHashMap.create('-', "_",
 //		                         '.', "_DOT_",
@@ -2687,6 +3253,11 @@ static final public IPersistentMap CHAR_MAP =
 '\\', "_BSLASH_",
 '?', "_QMARK_");
 
+/**
+ * 这个方法就是把一个clojure名字转换成最终JVM字节码里面的名字
+ * @param name
+ * @return
+ */
 static public String munge(String name){
 	StringBuilder sb = new StringBuilder();
 	for(char c : name.toCharArray())
@@ -2700,6 +3271,9 @@ static public String munge(String name){
 	return sb.toString();
 }
 
+/**
+ * 空表达式，真有意思
+ */
 public static class EmptyExpr implements Expr{
 	public final Object coll;
 	final static Type HASHMAP_TYPE = Type.getType(PersistentArrayMap.class);
@@ -2752,6 +3326,9 @@ public static class EmptyExpr implements Expr{
 	}
 }
 
+/**
+ * list表达式 -- 纯数据的那个list，而不是函数调用那个list
+ */
 public static class ListExpr implements Expr{
 	public final IPersistentVector args;
 	final static Method arrayToListMethod = Method.getMethod("clojure.lang.ISeq arrayToList(Object[])");
@@ -2785,6 +3362,9 @@ public static class ListExpr implements Expr{
 
 }
 
+/**
+ * map表达式
+ */
 public static class MapExpr implements Expr{
 	public final IPersistentVector keyvals;
 	final static Method mapMethod = Method.getMethod("clojure.lang.IPersistentMap map(Object[])");
@@ -2827,6 +3407,7 @@ public static class MapExpr implements Expr{
 			Expr v = analyze(context == C.EVAL ? context : C.EXPRESSION, e.val());
 			keyvals = (IPersistentVector) keyvals.cons(k);
 			keyvals = (IPersistentVector) keyvals.cons(v);
+			// map里面的所有元素(key, value)都是字面量？
 			if(!(k instanceof LiteralExpr && v instanceof LiteralExpr))
 				constant = false;
 			}
@@ -2850,6 +3431,9 @@ public static class MapExpr implements Expr{
 	}
 }
 
+/**
+ * set字面量
+ */
 public static class SetExpr implements Expr{
 	public final IPersistentVector keys;
 	final static Method setMethod = Method.getMethod("clojure.lang.IPersistentSet set(Object[])");
@@ -2914,6 +3498,9 @@ public static class SetExpr implements Expr{
 	}
 }
 
+/**
+ * vector表达式
+ */
 public static class VectorExpr implements Expr{
 	public final IPersistentVector args;
 	final static Method vectorMethod = Method.getMethod("clojure.lang.IPersistentVector vector(Object[])");
@@ -3566,13 +4153,22 @@ static class SourceDebugExtensionAttribute extends Attribute{
 	}
 }
 
+/**
+ * 函数表达式
+ */
 static public class FnExpr extends ObjExpr{
 	final static Type aFnType = Type.getType(AFunction.class);
 	final static Type restFnType = Type.getType(RestFn.class);
 	//if there is a variadic overload (there can only be one) it is stored here
 	FnMethod variadicMethod = null;
 	IPersistentCollection methods;
+	/**
+	 * 定义了基本类型的type hint么
+	 */
 	private boolean hasPrimSigs;
+	/**
+	 * 有元数据么
+	 */
 	private boolean hasMeta;
 	//	String superName = null;
 
@@ -3618,6 +4214,7 @@ static public class FnExpr extends ObjExpr{
 		ISeq origForm = form;
 		FnExpr fn = new FnExpr(tagOf(form));
 		fn.src = form;
+		// 拿出当前正在解析的方法
 		ObjMethod enclosingMethod = (ObjMethod) METHOD.deref();
 		if(((IMeta) form.first()).meta() != null)
 			{
@@ -3751,14 +4348,26 @@ static public class FnExpr extends ObjExpr{
 			return fn;
 	}
 
+	/**
+	 * 有剩余参数的那个方法
+	 * @return
+	 */
 	public final ObjMethod variadicMethod(){
 		return variadicMethod;
 	}
 
+	/**
+	 * 参数列表是否有剩余参数
+	 * @return
+	 */
 	boolean isVariadic(){
 		return variadicMethod != null;
 	}
 
+	/**
+	 * 所有方法体
+	 * @return
+	 */
 	public final IPersistentCollection methods(){
 		return methods;
 	}
@@ -3781,12 +4390,30 @@ static public class FnExpr extends ObjExpr{
 }
 
 static public class ObjExpr implements Expr{
+    /**
+     * const__
+     */
 	static final String CONST_PREFIX = "const__";
+	/**
+	 * 就是一个类的fully-qualified name
+	 */
 	String name;
 	//String simpleName;
+	/**
+	 * 就是一个类的fully-qualified name只不过把.换成/了。比如java/lang/Object
+	 */
 	String internalName;
+	/**
+	 * (fn* a ([c] 1)) 里面的a
+	 */
 	String thisName;
+	/**
+	 * internalName所对应的Type对象
+	 */
 	Type objtype;
+	/**
+	 * 表达式的tag
+	 */
 	public final Object tag;
 	//localbinding->itself
 	IPersistentMap closes = PersistentHashMap.EMPTY;
@@ -3807,12 +4434,18 @@ static public class ObjExpr implements Expr{
 	Class compiledClass;
 	int line;
 	PersistentVector constants;
+	/**
+	 * 该对象的常量id
+	 */
 	int constantsID;
 	int altCtorDrops = 0;
 
 	IPersistentVector keywordCallsites;
 	IPersistentVector protocolCallsites;
 	IPersistentSet varCallsites;
+	/**
+	 * meta里面的:once信息
+	 */
 	boolean onceOnly = false;
 
 	Object src;
@@ -3914,6 +4547,13 @@ static public class ObjExpr implements Expr{
 		return ret;
 	}
 
+	/**
+	 * 编译这个方法
+	 * @param superName 父类的名字。如果有剩余参数则是clojure/lang/RestFn， 否则clojure/lang/AFunction
+	 * @param interfaceNames 实现的接口的名字。 这些接口是是由long，double type hint决定的
+	 * @param oneTimeUse 是一次性的么？
+	 * @throws IOException
+	 */
 	void compile(String superName, String[] interfaceNames, boolean oneTimeUse) throws IOException{
 		//create bytecode for a class
 		//with name current_ns.defname[$letname]+
@@ -4685,6 +5325,12 @@ static public class ObjExpr implements Expr{
 			}
 	}
 
+	/**
+	 * 发射一个本地绑定
+	 * @param gen
+	 * @param lb
+	 * @param clear
+	 */
 	private void emitLocal(GeneratorAdapter gen, LocalBinding lb, boolean clear){
 		if(closes.containsKey(lb))
 			{
@@ -4769,6 +5415,11 @@ static public class ObjExpr implements Expr{
 			gen.visitVarInsn(Type.getType(primc).getOpcode(Opcodes.ILOAD), lb.idx);
 	}
 
+	/**
+	 * 发射一个var，其实就是emit一个constant。
+	 * @param gen
+	 * @param var
+	 */
 	public void emitVar(GeneratorAdapter gen, Var var){
 		Integer i = (Integer) vars.valAt(var);
 		emitConstant(gen, i);
@@ -4776,8 +5427,16 @@ static public class ObjExpr implements Expr{
 	}
 
 	final static Method varGetMethod = Method.getMethod("Object get()");
+	/**
+	 * Object getRawRoot()
+	 */
 	final static Method varGetRawMethod = Method.getMethod("Object getRawRoot()");
 
+	/**
+	 * emit一个var的值出来
+	 * @param gen
+	 * @param v
+	 */
 	public void emitVarValue(GeneratorAdapter gen, Var v){
 		Integer i = (Integer) vars.valAt(v);
 		if(!v.isDynamic())
@@ -4792,6 +5451,11 @@ static public class ObjExpr implements Expr{
 			}
 	}
 
+	/**
+	 * 其实就是emitConstant
+	 * @param gen
+	 * @param k
+	 */
 	public void emitKeyword(GeneratorAdapter gen, Keyword k){
 		Integer i = (Integer) keywords.valAt(k);
 		emitConstant(gen, i);
@@ -4802,49 +5466,105 @@ static public class ObjExpr implements Expr{
 		gen.getStatic(objtype, constantName(id), constantType(id));
 	}
 
-
+	/**
+	 * const__{id}
+	 * @param id
+	 * @return
+	 */
 	String constantName(int id){
 		return CONST_PREFIX + id;
 	}
 
+	/**
+	 * __site__{n}
+	 * @param n
+	 * @return
+	 */
 	String siteName(int n){
 		return "__site__" + n;
 	}
 
+	/**
+	 * __site__{n}__
+	 * @param n
+	 * @return
+	 */
 	String siteNameStatic(int n){
 		return siteName(n) + "__";
 	}
 
+	/**
+	 * __thunk__{n}
+	 * @param n
+	 * @return
+	 */
 	String thunkName(int n){
 		return "__thunk__" + n;
 	}
 
+	/**
+	 * __cached_class__{n}
+	 * @param n
+	 * @return
+	 */
 	String cachedClassName(int n){
 		return "__cached_class__" + n;
 	}
 
+	/**
+	 * __cached_var__{n}
+	 * @param n
+	 * @return
+	 */
 	String cachedVarName(int n){
 		return "__cached_var__" + n;
 	}
 
+	/**
+	 * __cached_proto_fn__{n}
+	 * @param n
+	 * @return
+	 */
 	String cachedProtoFnName(int n){
 		return "__cached_proto_fn__" + n;
 	}
 
+	/**
+	 * __cached_proto_impl__{n}
+	 * @param n
+	 * @return
+	 */
 	String cachedProtoImplName(int n){
 		return "__cached_proto_impl__" + n;
 	}
 
+	/**
+	 * __var__callsite__{n}
+	 * @param n
+	 * @return
+	 */
 	String varCallsiteName(int n){
 		return "__var__callsite__" + n;
 	}
 
+	/**
+	 * __thunk__{n}__
+	 * @param n
+	 * @return
+	 */
 	String thunkNameStatic(int n){
 		return thunkName(n) + "__";
 	}
 
+	/**
+	 * 获取id为id的constant的type
+	 * @param id
+	 * @return
+	 */
 	Type constantType(int id){
+	    // 把<id>个常量拿出来
 		Object o = constants.nth(id);
+		// 获取它的class
 		Class c = clojure.lang.Util.classOf(o);
 		if(c!= null && Modifier.isPublic(c.getModifiers()))
 			{
@@ -4866,6 +5586,7 @@ static public class ObjExpr implements Expr{
 
 //			return Type.getType(c);
 			}
+		// 如返回空，那么直接返回Object type
 		return OBJECT_TYPE;
 	}
 
@@ -4885,27 +5606,78 @@ static class PathNode{
     }
 }
 
+/**
+ * CLEAR_ROOT.get()
+ * @return
+ */
 static PathNode clearPathRoot(){
     return (PathNode) CLEAR_ROOT.get();
 }
     
+/**
+ * 应该是P-STATE吧: Parameter-State. 其实是用来当前正在解析的参数的“类型”
+ * <ul>
+ *  <li>REQ: 必须参数</li>
+ *  <li>REST: 剩余参数</li>
+ *  <li>DONE: ?</li>
+ * </ul>
+ */
 enum PSTATE{
-	REQ, REST, DONE
+    /**
+     * 必须参数
+     */
+	REQ, 
+	/**
+	 * 剩余参数
+	 */
+	REST,
+	/**
+	 * ?
+	 */
+	DONE
 }
 
 public static class FnMethod extends ObjMethod{
 	//localbinding->localbinding
+    /**
+     * 函数的固定参数
+     */
 	PersistentVector reqParms = PersistentVector.EMPTY;
+	/**
+	 * 函数的剩余参数
+	 */
 	LocalBinding restParm = null;
+	/**
+	 * 参数类型Type
+	 */
 	Type[] argtypes;
+	/**
+	 * 参数类型:Class
+	 */
 	Class[] argclasses;
+	/**
+	 * 返回值的类型
+	 */
 	Class retClass;
+	/**
+	 * 函数的primitive interface(如果有的话)
+	 */
 	String prim ;
 
 	public FnMethod(ObjExpr objx, ObjMethod parent){
 		super(objx, parent);
 	}
 
+	/**
+	 * 返回类型所对应的字符:
+	 * <ul>
+	 *     <li>Object => 'O'</li>
+	 *     <li>long   => 'L'</li>
+	 *     <li>double => 'D'</li>
+	 * </ul>
+	 * @param x
+	 * @return
+	 */
 	static public char classChar(Object x){
 		Class c = null;
 		if(x instanceof Class)
@@ -4921,6 +5693,11 @@ public static class FnMethod extends ObjMethod{
 		throw new IllegalArgumentException("Only long and double primitives are supported");
 	}
 
+	/**
+	 * 返回这个函数所对应的接口(如果是primitive的话)
+	 * @param arglist
+	 * @return
+	 */
 	static public String primInterface(IPersistentVector arglist) {
 		StringBuilder sb = new StringBuilder();
 		for(int i=0;i<arglist.count();i++)
@@ -4928,8 +5705,10 @@ public static class FnMethod extends ObjMethod{
 		sb.append(classChar(tagOf(arglist)));
 		String ret = sb.toString();
 		boolean prim = ret.contains("L") || ret.contains("D");
+		// 支持基本类型的函数只支持4个以下参数？
 		if(prim && arglist.count() > 4)
 			throw new IllegalArgumentException("fns taking primitives support only 4 or fewer args");
+		// 这返回的是什么？
 		if(prim)
 			return "clojure.lang.IFn$" + ret;
 		return null;
@@ -4937,7 +5716,9 @@ public static class FnMethod extends ObjMethod{
 
 	static FnMethod parse(ObjExpr objx, ISeq form, boolean isStatic) {
 		//([args] body...)
+	    // 方法定义的里面第一个肯定是一个参数vector
 		IPersistentVector parms = (IPersistentVector) RT.first(form);
+		// 剩下的函数实现
 		ISeq body = RT.next(form);
 		try
 			{
@@ -4947,6 +5728,7 @@ public static class FnMethod extends ObjMethod{
             PathNode pnode =  (PathNode) CLEAR_PATH.get();
 			if(pnode == null)
 				pnode = new PathNode(PATHTYPE.PATH,null);
+			// 设置以下当前的方法: FnMethod
 			Var.pushThreadBindings(
 					RT.map(
 							METHOD, method,
@@ -4957,7 +5739,7 @@ public static class FnMethod extends ObjMethod{
                             ,CLEAR_ROOT, pnode
                             ,CLEAR_SITES, PersistentHashMap.EMPTY
                         ));
-
+			// 设置函数的primitive interface
 			method.prim = primInterface(parms);
 			if(method.prim != null)
 				method.prim = method.prim.replace('.', '/');
@@ -4981,15 +5763,18 @@ public static class FnMethod extends ObjMethod{
 			ArrayList<Class> argclasses = new ArrayList();
 			for(int i = 0; i < parms.count(); i++)
 				{
+			    // fn的参数必须是symbol
 				if(!(parms.nth(i) instanceof Symbol))
 					throw new IllegalArgumentException("fn params must be Symbols");
 				Symbol p = (Symbol) parms.nth(i);
+				// 参数的symbol当然不能是quanlified名字喽
 				if(p.getNamespace() != null)
 					throw Util.runtimeException("Can't use qualified name as parameter: " + p);
 				if(p.equals(_AMP_))
 					{
 //					if(isStatic)
 //						throw Util.runtimeException("Variadic fns cannot be static");
+				    // 剩下的是剩余参数
 					if(state == PSTATE.REQ)
 						state = PSTATE.REST;
 					else
@@ -5005,18 +5790,23 @@ public static class FnMethod extends ObjMethod{
 //						p = (Symbol) ((IObj) p).withMeta((IPersistentMap) RT.assoc(RT.meta(p), RT.TAG_KEY, null));
 //						}
 //						throw Util.runtimeException("Non-static fn can't have primitive parameter: " + p);
+					// 对于函数参数的type hint，只支持long和double
 					if(pc.isPrimitive() && !(pc == double.class || pc == long.class))
 						throw new IllegalArgumentException("Only long and double primitives are supported: " + p);
 
+					// 剩余参数是不可以有type hint的
 					if(state == PSTATE.REST && tagOf(p) != null)
 						throw Util.runtimeException("& arg cannot have type hint");
+					// 如果一个函数的必须参数已经用type hint了，后面的剩余参数就不可以用了
 					if(state == PSTATE.REST && method.prim != null)
 						throw Util.runtimeException("fns taking primitives cannot be variadic");
-					                        
+					        
+					// 剩余参数的tag是ISeq
 					if(state == PSTATE.REST)
 						pc = ISeq.class;
 					argtypes.add(Type.getType(pc));
 					argclasses.add(pc);
+					// 剩余参数的tag是ISeq
 					LocalBinding lb = pc.isPrimitive() ?
 					                  registerLocal(p, null, new MethodParamExpr(pc), true)
 					                           : registerLocal(p, state == PSTATE.REST ? ISEQ : tagOf(p), null, true);
@@ -5036,6 +5826,7 @@ public static class FnMethod extends ObjMethod{
 						}
 					}
 				}
+			// 函数必须参数的个数超标了
 			if(method.reqParms.count() > MAX_POSITIONAL_ARITY)
 				throw Util.runtimeException("Can't specify more than " + MAX_POSITIONAL_ARITY + " params");
 			LOOP_LOCALS.set(argLocals);
@@ -5242,14 +6033,24 @@ public static class FnMethod extends ObjMethod{
 		return restParm;
 	}
 
+	/**
+	 * 这个函数有没有剩余参数?
+	 * @return
+	 */
 	boolean isVariadic(){
 		return restParm != null;
 	}
 
+	/**
+	 * 函数的参数可以
+	 */
 	int numParams(){
 		return reqParms.count() + (isVariadic() ? 1 : 0);
 	}
 
+	/**
+	 * 如果有剩余参数，调用的是doInvoke, 否则是invoke
+	 */
 	String getMethodName(){
 		return isVariadic()?"doInvoke":"invoke";
 	}
@@ -5299,17 +6100,38 @@ public static class FnMethod extends ObjMethod{
 	}
 }
 
+/**
+ * 
+ */
 abstract public static class ObjMethod{
 	//when closures are defined inside other closures,
 	//the closed over locals need to be propagated to the enclosing objx
 	public final ObjMethod parent;
 	//localbinding->localbinding
+	/**
+	 * 这个方法里面用到的所有本地绑定
+	 * 不知道为什么是 localbinding => localbindging
+	 * @see {@link #registerLocal}
+	 */
 	IPersistentMap locals = null;
 	//num->localbinding
+	/**
+	 * 跟上面的locals类似，只是key为localbinding的序号
+	 * @see {@link #registerLocal}
+	 */
 	IPersistentMap indexlocals = null;
+	/**
+	 * 函数实现
+	 */
 	Expr body = null;
 	ObjExpr objx;
+	/**
+	 * 表示函数参数的所有本地绑定
+	 */
 	PersistentVector argLocals;
+	/**
+	 * 最大的本地绑定的序号
+	 */
 	int maxLocal = 0;
 	int line;
 	PersistentHashSet localsUsedInCatchFinally = PersistentHashSet.EMPTY;
@@ -5465,14 +6287,32 @@ abstract public static class ObjMethod{
 	}
 }
 
+/**
+ * 表示一个本地绑定
+ */
 public static class LocalBinding{
+    /**
+     * 绑定的名字
+     */
 	public final Symbol sym;
+	/**
+	 * 这个绑定的类型
+	 */
 	public final Symbol tag;
+	/**
+	 * 绑定的初始值
+	 */
 	public Expr init;
+	/**
+	 * 本地绑定的序号
+	 */
 	public final int idx;
 	public final String name;
 	public final boolean isArg;
     public final PathNode clearPathRoot;
+    /**
+     * 可以应用locals clearing技术吗？
+     */
 	public boolean canBeCleared = !RT.booleanCast(getCompilerOption(disableLocalsClearingKey));
 	public boolean recurMistmatch = false;
 
@@ -5498,6 +6338,10 @@ public static class LocalBinding{
 		       || (init != null && init.hasJavaClass());
 	}
 
+	/**
+	 * 本地绑定的java类，如果有tag，那么取tag的类型，否则去初始值的类型
+	 * @return
+	 */
 	public Class getJavaClass() {
 		return tag != null ? HostExpr.tagToClass(tag)
 		                   : init.getJavaClass();
@@ -5508,6 +6352,9 @@ public static class LocalBinding{
 	}
 }
 
+/**
+ * 本地绑定表达式
+ */
 public static class LocalBindingExpr implements Expr, MaybePrimitiveExpr, AssignableExpr{
 	public final LocalBinding b;
 	public final Symbol tag;
@@ -5538,6 +6385,7 @@ public static class LocalBindingExpr implements Expr, MaybePrimitiveExpr, Assign
                     {
                     LocalBindingExpr o = (LocalBindingExpr) s.first();
                     PathNode common = commonPath(clearPath,o.clearPath);
+                    // 有公共的所以不能清？
                     if(common != null && common.type == PATHTYPE.PATH)
                         o.shouldClear = false;
 //                    else
@@ -5556,6 +6404,9 @@ public static class LocalBindingExpr implements Expr, MaybePrimitiveExpr, Assign
             }
  	    }
 
+	/**
+	 * 本地绑定是没办法被eval的
+	 */
 	public Object eval() {
 		throw new UnsupportedOperationException("Can't eval locals");
 	}
@@ -5596,6 +6447,9 @@ public static class LocalBindingExpr implements Expr, MaybePrimitiveExpr, Assign
 
 }
 
+/**
+ * 什么是Body？Body就是一堆expr喽
+ */
 public static class BodyExpr implements Expr, MaybePrimitiveExpr{
 	PersistentVector exprs;
 
@@ -5610,6 +6464,7 @@ public static class BodyExpr implements Expr, MaybePrimitiveExpr{
 	static class Parser implements IParser{
 		public Expr parse(C context, Object frms) {
 			ISeq forms = (ISeq) frms;
+			// 先把第一个DO剥掉
 			if(Util.equals(RT.first(forms), DO))
 				forms = RT.next(forms);
 			PersistentVector exprs = PersistentVector.EMPTY;
@@ -5675,6 +6530,9 @@ public static class BodyExpr implements Expr, MaybePrimitiveExpr{
 	}
 }
 
+/**
+ * 本地绑定以及初始化表达式
+ */
 public static class BindingInit{
 	LocalBinding binding;
 	Expr init;
@@ -5818,9 +6676,21 @@ public static class LetFnExpr implements Expr{
 	}
 }
 
+/**
+ * let表达式
+ */
 public static class LetExpr implements Expr, MaybePrimitiveExpr{
+    /**
+     * 绑定的初始化值
+     */
 	public final PersistentVector bindingInits;
+	/**
+	 * let body
+	 */
 	public final Expr body;
+	/**
+	 * 是不是一个loop
+	 */
 	public final boolean isLoop;
 
 	public LetExpr(PersistentVector bindingInits, Expr body, boolean isLoop){
@@ -5847,6 +6717,7 @@ public static class LetExpr implements Expr, MaybePrimitiveExpr{
 			   || (context == C.EXPRESSION && isLoop))
 				return analyze(context, RT.list(RT.list(FN, PersistentVector.EMPTY, form)));
 
+			// 这个let所在的方法
 			ObjMethod method = (ObjMethod) METHOD.deref();
 			IPersistentMap backupMethodLocals = method.locals;
 			IPersistentMap backupMethodIndexLocals = method.indexlocals;
@@ -5944,6 +6815,9 @@ public static class LetExpr implements Expr, MaybePrimitiveExpr{
 		}
 	}
 
+	/**
+	 * 
+	 */
 	public Object eval() {
 		throw new UnsupportedOperationException("Can't eval let/loop");
 	}
@@ -6199,17 +7073,38 @@ public static class RecurExpr implements Expr{
 	}
 }
 
+/**
+ * 登记一个本地绑定。会做以下事情:
+ * <ul>
+ *  <li>把这个本地绑定加入到LOCAL_ENV</li>
+ *  <li>把它注册到当前正在解析的方法的locals和indexlocals
+ * </ul>
+ * @param sym
+ * @param tag
+ * @param init
+ * @param isArg
+ * @return
+ */
 private static LocalBinding registerLocal(Symbol sym, Symbol tag, Expr init, boolean isArg) {
 	int num = getAndIncLocalNum();
 	LocalBinding b = new LocalBinding(num, sym, tag, init, isArg, clearPathRoot());
 	IPersistentMap localsMap = (IPersistentMap) LOCAL_ENV.deref();
+	// 把这个本地绑定添加到LOCAL_ENV里面去
 	LOCAL_ENV.set(RT.assoc(localsMap, b.sym, b));
+	// 获取当前正在解析的方法
 	ObjMethod method = (ObjMethod) METHOD.deref();
+	// 把这个本地绑定加入到这个方法的locals里面去
 	method.locals = (IPersistentMap) RT.assoc(method.locals, b, b);
+	// 记录一下indexlocals
 	method.indexlocals = (IPersistentMap) RT.assoc(method.indexlocals, num, b);
 	return b;
 }
 
+/**
+ * 获取并且递增本地变量的序号
+ * 一个side effect是可能会增大函数的maxLocal
+ * @return
+ */
 private static int getAndIncLocalNum(){
 	int num = ((Number) NEXT_LOCAL_NUM.deref()).intValue();
 	ObjMethod m = (ObjMethod) METHOD.deref();
@@ -6219,14 +7114,28 @@ private static int getAndIncLocalNum(){
 	return num;
 }
 
+/**
+ * 把一个form解析成一个Expr
+ * @param context
+ * @param form
+ * @return
+ */
 public static Expr analyze(C context, Object form) {
 	return analyze(context, form, null);
 }
 
+/**
+ * 把一个form解析成一个Expr
+ * @param context
+ * @param form
+ * @param name
+ * @return
+ */
 private static Expr analyze(C context, Object form, String name) {
 	//todo symbol macro expansion?
 	try
 		{
+	    // 如果是lazyseq，先把它解出来
 		if(form instanceof LazySeq)
 			{
 			form = RT.seq(form);
@@ -6297,6 +7206,11 @@ static public class CompilerException extends RuntimeException{
 	}
 }
 
+/**
+ * 如果是宏，找出对应的Var，否则返回null
+ * @param op
+ * @return
+ */
 static public Var isMacro(Object op) {
 	//no local macros for now
 	if(op instanceof Symbol && referenceLocal((Symbol) op) != null)
@@ -6314,21 +7228,32 @@ static public Var isMacro(Object op) {
 	return null;
 }
 
+/**
+ * 查出这个函数的inline形式, 参数个数为arity
+ * @param op
+ * @param arity
+ * @return
+ */
 static public IFn isInline(Object op, int arity) {
 	//no local inlines for now
+    // 如果是个本地绑定就算了，因为现在没有本地绑定的inline
 	if(op instanceof Symbol && referenceLocal((Symbol) op) != null)
 		return null;
 	if(op instanceof Symbol || op instanceof Var)
 		{
+	    // 找出sym所对应的var
 		Var v = (op instanceof Var) ? (Var) op : lookupVar((Symbol) op, false);
 		if(v != null)
 			{
+		    // 如果要访问的不是当前名字空间并且是私有的var，那么报错
 			if(v.ns != currentNS() && !v.isPublic())
 				throw new IllegalStateException("var: " + v + " is not public");
+			// 找出meta信息里面的inline信息
 			IFn ret = (IFn) RT.get(v.meta(), inlineKey);
 			if(ret != null)
 				{
 				IFn arityPred = (IFn) RT.get(v.meta(), inlineAritiesKey);
+				// inline-arities是什么？
 				if(arityPred == null || RT.booleanCast(arityPred.invoke(arity)))
 					return ret;
 				}
@@ -6337,12 +7262,25 @@ static public IFn isInline(Object op, int arity) {
 	return null;
 }
 
+/**
+ * 这个symbol表示的是不是一个静态成员
+ * @param sym
+ * @return
+ */
 public static boolean namesStaticMember(Symbol sym){
 	return sym.ns != null && namespaceFor(sym) == null;
 }
 
+/**
+ * 把src的tag绑定到dst上去
+ * @param src
+ * @param dst
+ * @return
+ */
 public static Object preserveTag(ISeq src, Object dst) {
+    // 把src的tag搞出来
 	Symbol tag = tagOf(src);
+	// 把src的tag给dst绑上去
 	if (tag != null && dst instanceof IObj) {
 		IPersistentMap meta = RT.meta(dst);
 		return ((IObj) dst).withMeta((IPersistentMap) RT.assoc(meta, RT.TAG_KEY, tag));
@@ -6354,15 +7292,20 @@ public static Object macroexpand1(Object x) {
 	if(x instanceof ISeq)
 		{
 		ISeq form = (ISeq) x;
+		// 把op拿出来
 		Object op = RT.first(form);
+		// 如果是special form，那么直接返回
 		if(isSpecial(op))
 			return x;
 		//macro expansion
+		// 是不是宏
 		Var v = isMacro(op);
 		if(v != null)
-			{
+			{// 是宏
 				try
 					{
+				        // 所谓的宏扩展其实就是调用宏的实现，调用的参数是什么？
+				        // 整个form，local_env, 以及剩下的其它参数
 						return v.applyTo(RT.cons(form,RT.cons(LOCAL_ENV.get(),form.next())));
 					}
 				catch(ArityException e)
@@ -6372,12 +7315,13 @@ public static Object macroexpand1(Object x) {
 					}
 			}
 		else
-			{
+			{// 如果不是宏
 			if(op instanceof Symbol)
 				{
+			    // 这是在调用类的一个方法
 				Symbol sym = (Symbol) op;
 				String sname = sym.name;
-				//(.substring s 2 5) => (. s substring 2 5)
+				//这个注释很清晰: (.substring s 2 5) => (. s substring 2 5)
 				if(sym.name.charAt(0) == '.')
 					{
 					if(RT.length(form) < 2)
@@ -6392,7 +7336,7 @@ public static Object macroexpand1(Object x) {
 					return preserveTag(form, RT.listStar(DOT, target, meth, form.next().next()));
 					}
 				else if(namesStaticMember(sym))
-					{
+					{// 如果指向的是一个static成员，调用静态函数
 					Symbol target = Symbol.intern(sym.ns);
 					Class c = HostExpr.maybeClass(target, false);
 					if(c != null)
@@ -6423,6 +7367,13 @@ public static Object macroexpand1(Object x) {
 	return x;
 }
 
+/**
+ * 宏展开，其实不只是宏展开，还做了额外的一些事情，比如
+ *   (StringBuilder. "foo") => (new StringBuilder "foo")
+ *   (.substring s 2 5) => (. s substring 2 5)
+ * @param form
+ * @return
+ */
 static Object macroexpand(Object form) {
 	Object exf = macroexpand1(form);
 	if(exf != form)
@@ -6430,27 +7381,43 @@ static Object macroexpand(Object form) {
 	return form;
 }
 
+/**
+ * 分析seq，也就是分析函数调用
+ * @param context
+ * @param form
+ * @param name
+ * @return
+ */
 private static Expr analyzeSeq(C context, ISeq form, String name) {
 	Integer line = (Integer) LINE.deref();
 	if(RT.meta(form) != null && RT.meta(form).containsKey(RT.LINE_KEY))
 		line = (Integer) RT.meta(form).valAt(RT.LINE_KEY);
+	// 把行号信息带下去
 	Var.pushThreadBindings(
 			RT.map(LINE, line));
 	try
 		{
+	    // 先宏扩展一下
 		Object me = macroexpand1(form);
+		// 如果扩展之后跟原来不同了，那么analyze
 		if(me != form)
 			return analyze(context, me, name);
 
+		// 取出第一位的操作符
 		Object op = RT.first(form);
+		// 当然不能调用nil..
 		if(op == null)
 			throw new IllegalArgumentException("Can't call nil");
+		// 如果可以inline
 		IFn inline = isInline(op, RT.count(RT.next(form)));
+		// 进行inline，并且把原form的tag绑定到inline函数上去。
 		if(inline != null)
 			return analyze(context, preserveTag(form, inline.applyTo(RT.next(form))));
 		IParser p;
+		// 如果是fn, 那么交给FnExpr去搞定
 		if(op.equals(FN))
 			return FnExpr.parse(context, form, name);
+		// 如果是special form，那么让对应的Parser去搞定
 		else if((p = (IParser) specials.valAt(op)) != null)
 			return p.parse(context, form);
 		else
@@ -6477,6 +7444,12 @@ public static Object eval(Object form) {
 	return eval(form, true);
 }
 
+/**
+ * eval一个form
+ * @param form 要eval的form
+ * @param freshLoader是否使用新classloader
+ * @return
+ */
 public static Object eval(Object form, boolean freshLoader) {
 	boolean createdLoader = false;
 	if(true)//!LOADER.isBound())
@@ -6486,13 +7459,17 @@ public static Object eval(Object form, boolean freshLoader) {
 		}
 	try
 		{
+	    // 获取当前行号
 		Integer line = (Integer) LINE.deref();
 		if(RT.meta(form) != null && RT.meta(form).containsKey(RT.LINE_KEY))
 			line = (Integer) RT.meta(form).valAt(RT.LINE_KEY);
+		// push行号
 		Var.pushThreadBindings(RT.map(LINE, line));
 		try
 			{
+		    // 先macroexpand
 			form = macroexpand(form);
+			// 如果是个do form，那么eval每一个子表达式，返回最后一个表达式
 			if(form instanceof IPersistentCollection && Util.equals(RT.first(form), DO))
 				{
 				ISeq s = RT.next(form);
@@ -6535,6 +7512,12 @@ public static Object eval(Object form, boolean freshLoader) {
 		}
 }
 
+/**
+ * 把o塞到CONSTANTS里面去，并且把[o id]塞到CONSTANT_IDS里面去，所谓的id其实就是o在CONSTANTS这个vector里面的下标。
+ * 
+ * @param o
+ * @return
+ */
 private static int registerConstant(Object o){
 	if(!CONSTANTS.isBound())
 		return -1;
@@ -6548,6 +7531,11 @@ private static int registerConstant(Object o){
 	return v.count();
 }
 
+/**
+ * 把keyword注册到KEYWORDS池里面去
+ * @param keyword
+ * @return
+ */
 private static KeywordExpr registerKeyword(Keyword keyword){
 	if(!KEYWORDS.isBound())
 		return new KeywordExpr(keyword);
@@ -6598,6 +7586,11 @@ private static void registerVarCallsite(Var v){
 //	return varCallsites.count()-1;
 }
 
+/**
+ * 把p1一直到跟节点的所有的PathNode找出来返回回来
+ * @param p1
+ * @return
+ */
 static ISeq fwdPath(PathNode p1){
     ISeq ret = null;
     for(;p1 != null;p1 = p1.parent)
@@ -6605,6 +7598,12 @@ static ISeq fwdPath(PathNode p1){
     return ret;
 }
 
+/**
+ * 找出两个PathNode根上面相同的那部分
+ * @param n1
+ * @param n2
+ * @return
+ */
 static PathNode commonPath(PathNode n1, PathNode n2){
     ISeq xp = fwdPath(n1);
     ISeq yp = fwdPath(n2);
@@ -6640,10 +7639,18 @@ static void addParameterAnnotation(Object visitor, IPersistentMap meta, int i){
 		}
 }
 
+/**
+ * 把symbol解析成一个Expr
+ * @param sym
+ * @return
+ */
 private static Expr analyzeSymbol(Symbol sym) {
+    // 先获取该sym的tag
 	Symbol tag = tagOf(sym);
+	// 看看该sym的名字空间，如果是不是null的话，那么肯定是一个var
 	if(sym.ns == null) //ns-qualified syms are always Vars
 		{
+	    // 找出改sym所对应的本地绑定
 		LocalBinding b = referenceLocal(sym);
 		if(b != null)
             {
@@ -6652,6 +7659,8 @@ private static Expr analyzeSymbol(Symbol sym) {
 		}
 	else
 		{
+	    // 程序走到这里说明这肯定是一个var
+	    // 如果这个sym没有名字空间的话
 		if(namespaceFor(sym) == null)
 			{
 			Symbol nsSym = Symbol.intern(sym.ns);
@@ -6659,6 +7668,7 @@ private static Expr analyzeSymbol(Symbol sym) {
 			if(c != null)
 				{
 				if(Reflector.getField(c, sym.name, true) != null)
+				    // 返回静态字段表达式
 					return new StaticFieldExpr((Integer) LINE.deref(), c, sym.name, tag);
 				throw Util.runtimeException("Unable to find static field: " + sym.name + " in " + c);
 				}
@@ -6668,15 +7678,21 @@ private static Expr analyzeSymbol(Symbol sym) {
 //	Var v = lookupVar(sym, false);
 //	if(v != null)
 //		return new VarExpr(v, tag);
+	// 在当前名字空间对这个sym进行求值
 	Object o = resolve(sym);
+	// 如果是一个var的话
 	if(o instanceof Var)
 		{
 		Var v = (Var) o;
+		// 看看是不是一个宏
 		if(isMacro(v) != null)
 			throw Util.runtimeException("Can't take value of a macro: " + v);
+		// 如果是个const，给它quote一下？
 		if(RT.booleanCast(RT.get(v.meta(),RT.CONST_KEY)))
 			return analyze(C.EXPRESSION, RT.list(QUOTE, v.get()));
+		// 注册这个var
 		registerVar(v);
+		// 返回这个VarExpr
 		return new VarExpr(v, tag);
 		}
 	else if(o instanceof Class)
@@ -6702,18 +7718,40 @@ static Type getType(Class c){
 	return Type.getType(descriptor);
 }
 
+/**
+ * 在当前名字空间对这个sym进行求值
+ * @param sym
+ * @param allowPrivate
+ * @return
+ */
 static Object resolve(Symbol sym, boolean allowPrivate) {
 	return resolveIn(currentNS(), sym, allowPrivate);
 }
 
+/**
+ * 在当前名字空间对这个sym进行求值
+ * @param sym
+ * @return
+ */
 static Object resolve(Symbol sym) {
 	return resolveIn(currentNS(), sym, false);
 }
 
+/**
+ * 找出sym的名字空间
+ * @param sym
+ * @return
+ */
 static Namespace namespaceFor(Symbol sym){
 	return namespaceFor(currentNS(), sym);
 }
 
+/**
+ * 找出该sym的名字空间对象。首先在当前名字空间inns的所有alias里面找，如果找不到，再去全局里面找(Namespace.find())
+ * @param inns
+ * @param sym
+ * @return
+ */
 static Namespace namespaceFor(Namespace inns, Symbol sym){
 	//note, presumes non-nil sym.ns
 	// first check against currentNS' aliases...
@@ -6727,23 +7765,37 @@ static Namespace namespaceFor(Namespace inns, Symbol sym){
 	return ns;
 }
 
+/**
+ * 在名字空间n里面对sym进行求值
+ * @param n
+ * @param sym
+ * @param allowPrivate
+ * @return
+ */
 static public Object resolveIn(Namespace n, Symbol sym, boolean allowPrivate) {
 	//note - ns-qualified vars must already exist
+    // 名字空间限定的var必须是事先存在的
 	if(sym.ns != null)
 		{
+	    // 找出sym的名字空间
 		Namespace ns = namespaceFor(n, sym);
+		// 如果找不到，那么报错
 		if(ns == null)
 			throw Util.runtimeException("No such namespace: " + sym.ns);
 
+		// 以sym的名字找出对应的var
 		Var v = ns.findInternedVar(Symbol.intern(sym.name));
 		if(v == null)
 			throw Util.runtimeException("No such var: " + sym);
+		// 如果在访问非当前名字空间的私有var，那么报错
 		else if(v.ns != currentNS() && !v.isPublic() && !allowPrivate)
 			throw new IllegalStateException("var: " + sym + " is not public");
+		// 返回这个var
 		return v;
 		}
 	else if(sym.name.indexOf('.') > 0 || sym.name.charAt(0) == '[')
 		{
+	    // 否则返回这个类
 		return RT.classForName(sym.name);
 		}
 	else if(sym.equals(NS))
@@ -6752,6 +7804,7 @@ static public Object resolveIn(Namespace n, Symbol sym, boolean allowPrivate) {
 			return RT.IN_NS_VAR;
 	else
 		{
+	    // 在当前名字空间找这个sym对应的var
 		if(Util.equals(sym, COMPILE_STUB_SYM.get()))
 			return COMPILE_STUB_CLASS.get();
 		Object o = n.getMapping(sym);
@@ -6799,29 +7852,40 @@ static public Object maybeResolveIn(Namespace n, Symbol sym) {
 				}
 }
 
-
+/**
+ * 找出sym所对应的var
+ * @param sym
+ * @param internNew
+ * @param registerMacro
+ * @return
+ */
 static Var lookupVar(Symbol sym, boolean internNew, boolean registerMacro) {
 	Var var = null;
 
 	//note - ns-qualified vars in other namespaces must already exist
+	// 在其它名字空间的var必须事先存在啊
 	if(sym.ns != null)
 		{
+	    // 找出它的名字空间
 		Namespace ns = namespaceFor(sym);
+		// 没有名字空间，返回null
 		if(ns == null)
 			return null;
 		//throw Util.runtimeException("No such namespace: " + sym.ns);
+		// 把这个var找出来
 		Symbol name = Symbol.intern(sym.name);
 		if(internNew && ns == currentNS())
 			var = currentNS().intern(name);
 		else
 			var = ns.findInternedVar(name);
 		}
-	else if(sym.equals(NS))
+	else if(sym.equals(NS)) // ns
 		var = RT.NS_VAR;
-	else if(sym.equals(IN_NS))
+	else if(sym.equals(IN_NS)) // in-ns
 			var = RT.IN_NS_VAR;
 		else
 			{
+		    // 在当前的名字空间找出它的隐射
 			//is it mapped?
 			Object o = currentNS().getMapping(sym);
 			if(o == null)
@@ -6843,10 +7907,21 @@ static Var lookupVar(Symbol sym, boolean internNew, boolean registerMacro) {
 		registerVar(var);
 	return var;
 }
+
+/**
+ * 找出sym所对应的var
+ * @param sym
+ * @param internNew
+ * @return
+ */
 static Var lookupVar(Symbol sym, boolean internNew) {
     return lookupVar(sym, internNew, true);
 }
 
+/**
+ * 把var注册到{@link VARS}里面去
+ * @param var
+ */
 private static void registerVar(Var var) {
 	if(!VARS.isBound())
 		return;
@@ -6860,6 +7935,10 @@ private static void registerVar(Var var) {
 //		VARS.set(RT.assoc(varsMap, var, var));
 }
 
+/**
+ * 返回当前的名字空间对象
+ * @return
+ */
 static Namespace currentNS(){
 	return (Namespace) RT.CURRENT_NS.deref();
 }
@@ -6879,11 +7958,18 @@ static void closeOver(LocalBinding b, ObjMethod method){
 		}
 }
 
-
+/**
+ * 找出该sym所对应的本地绑定
+ * @param sym
+ * @return
+ */
 static LocalBinding referenceLocal(Symbol sym) {
+    // 如果没有本地绑定，直接返回
 	if(!LOCAL_ENV.isBound())
 		return null;
+	// 从所有的本地绑定里面找出该sym所对应的本地绑定
 	LocalBinding b = (LocalBinding) RT.get(LOCAL_ENV.deref(), sym);
+	// 如果找到了。
 	if(b != null)
 		{
 		ObjMethod method = (ObjMethod) METHOD.deref();
@@ -6892,6 +7978,11 @@ static LocalBinding referenceLocal(Symbol sym) {
 	return b;
 }
 
+/**
+ * 返回对象o的meta里面tag信息，tag只能是两种类型:String和Symbol, 这个方法返回的都是symbol类型的。
+ * @param o
+ * @return
+ */
 private static Symbol tagOf(Object o){
 	Object tag = RT.get(RT.meta(o), RT.TAG_KEY);
 	if(tag instanceof Symbol)
@@ -6964,10 +8055,18 @@ public static Object load(Reader rdr, String sourcePath, String sourceName) {
 	return ret;
 }
 
+/**
+ * 把class的字节码写入到对应的class文件里面去。
+ * 
+ * @param internalName
+ * @param bytecode
+ * @throws IOException
+ */
 static public void writeClassFile(String internalName, byte[] bytecode) throws IOException{
 	String genPath = (String) COMPILE_PATH.deref();
 	if(genPath == null)
 		throw Util.runtimeException("*compile-path* not set");
+	// 创建该class在文件系统上对应的目录
 	String[] dirs = internalName.split("/");
 	String p = genPath;
 	for(int i = 0; i < dirs.length - 1; i++)
@@ -6975,14 +8074,17 @@ static public void writeClassFile(String internalName, byte[] bytecode) throws I
 		p += File.separator + dirs[i];
 		(new File(p)).mkdir();
 		}
+	// class文件的完整路径
 	String path = genPath + File.separator + internalName + ".class";
 	File cf = new File(path);
 	cf.createNewFile();
 	FileOutputStream cfs = new FileOutputStream(cf);
 	try
 		{
+	    // 把字节码写到文件里面去
 		cfs.write(bytecode);
 		cfs.flush();
+		// 强制内容落到磁盘，而不只是在内存的缓存里面
 		cfs.getFD().sync();
 		}
 	finally
@@ -7011,13 +8113,16 @@ static void compile1(GeneratorAdapter gen, ObjExpr objx, Object form) {
 	Integer line = (Integer) LINE.deref();
 	if(RT.meta(form) != null && RT.meta(form).containsKey(RT.LINE_KEY))
 		line = (Integer) RT.meta(form).valAt(RT.LINE_KEY);
+	// push行号和类加载器
 	Var.pushThreadBindings(
 			RT.map(LINE, line
 			       ,LOADER, RT.makeClassLoader()
 			));
 	try
 		{
+	    // 先macroexpand一下
 		form = macroexpand(form);
+		// compile form里面的每个元素
 		if(form instanceof IPersistentCollection && Util.equals(RT.first(form), DO))
 			{
 			for(ISeq s = RT.next(form); s != null; s = RT.next(s))
@@ -7027,6 +8132,7 @@ static void compile1(GeneratorAdapter gen, ObjExpr objx, Object form) {
 			}
 		else
 			{
+		    // 怎么compile的呢？调用analyze
 			Expr expr = analyze(C.EVAL, form);
 			objx.keywords = (IPersistentMap) KEYWORDS.deref();
 			objx.vars = (IPersistentMap) VARS.deref();
@@ -7047,9 +8153,11 @@ public static Object compile(Reader rdr, String sourcePath, String sourceName) t
 
 	Object EOF = new Object();
 	Object ret = null;
+	// 搞出一个LineNumberingReader
 	LineNumberingPushbackReader pushbackReader =
 			(rdr instanceof LineNumberingPushbackReader) ? (LineNumberingPushbackReader) rdr :
 			new LineNumberingPushbackReader(rdr);
+	// 把一些东西push进去
 	Var.pushThreadBindings(
 			RT.map(SOURCE_PATH, sourcePath,
 			       SOURCE, sourceName,
@@ -7074,15 +8182,17 @@ public static Object compile(Reader rdr, String sourcePath, String sourceName) t
 		{
 		//generate loader class
 		ObjExpr objx = new ObjExpr(null);
+		// __init原来是clojure故意加到类名后面的啊
 		objx.internalName = sourcePath.replace(File.separator, "/").substring(0, sourcePath.lastIndexOf('.'))
 		                  + RT.LOADER_SUFFIX;
-
+		// 获取类的type
 		objx.objtype = Type.getObjectType(objx.internalName);
 		ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
 		ClassVisitor cv = cw;
 		cv.visit(V1_5, ACC_PUBLIC + ACC_SUPER, objx.internalName, null, "java/lang/Object", null);
 
 		//static load method
+		// 生成静态的load()方法
 		GeneratorAdapter gen = new GeneratorAdapter(ACC_PUBLIC + ACC_STATIC,
 		                                            Method.getMethod("void load ()"),
 		                                            null,
@@ -7090,10 +8200,12 @@ public static Object compile(Reader rdr, String sourcePath, String sourceName) t
 		                                            cv);
 		gen.visitCode();
 
+		// 调用LispReader不停地读入对象
 		for(Object r = LispReader.read(pushbackReader, false, EOF, false); r != EOF;
 		    r = LispReader.read(pushbackReader, false, EOF, false))
 			{
 				LINE_AFTER.set(pushbackReader.getLineNumber());
+				// 编译它
 				compile1(gen, objx, r);
 				LINE_BEFORE.set(pushbackReader.getLineNumber());
 			}
@@ -7894,6 +9006,22 @@ public static class NewInstanceMethod extends ObjMethod{
 	}
 }
 
+    /**
+     * 返回作为tag的sym所对应的class。
+     * <ul>
+     *  <li>int => int.class</li>
+     *  <li>long => long.class</li>
+     *  <li>float => float.class</li>
+     *  <li>double => double.class</li>
+     *  <li>char => char.class</li>
+     *  <li>short => short.class</li>
+     *  <li>byte => byte.class</li>
+     *  <li>boolean => boolean.class</li>
+     *  <li>void => void.class</li>
+     * </ul>
+     * @param sym
+     * @return
+     */
 	static Class primClass(Symbol sym){
 		if(sym == null)
 			return null;
@@ -7930,10 +9058,20 @@ public static class NewInstanceMethod extends ObjMethod{
 		return c;
 	}
 
+	/**
+	 * 如果c是一个基本类型，那么直接返回，否则返回Object.class.
+	 * @param c
+	 * @return
+	 */
 	static Class primClass(Class c){
 		return c.isPrimitive()?c:Object.class;
 	}
 
+	/**
+	 * 获取各种基本类型的包装类
+	 * @param p
+	 * @return
+	 */
 	static Class boxClass(Class p) {
 		if(!p.isPrimitive())
 			return p;

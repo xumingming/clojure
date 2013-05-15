@@ -236,6 +236,13 @@ public static Object setStaticField(String className, String fieldName, Object v
 	return setStaticField(c, fieldName, val);
 }
 
+/**
+ * …Ë÷√static◊÷∂Œ÷µ
+ * @param c
+ * @param fieldName
+ * @param val
+ * @return
+ */
 public static Object setStaticField(Class c, String fieldName, Object val) {
 	Field f = getField(c, fieldName, true);
 	if(f != null)

@@ -60,7 +60,7 @@ static public class Unbound extends AFn{
 static class Frame{
 	//Var->TBox
     /**
-     * 当前的所有绑定
+     * 当前的所有绑定: Var => TBox
      */
 	Associative bindings;
 	//Var->val
@@ -112,7 +112,7 @@ static Keyword nsKey = Keyword.intern(null, "ns");
 //static Keyword tagKey = Keyword.intern(null, "tag");
 
 /**
- * 根绑定？
+ * 根绑定
  */
 volatile Object root;
 /**
