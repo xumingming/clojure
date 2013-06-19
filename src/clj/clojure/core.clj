@@ -2247,6 +2247,13 @@
   `(. clojure.lang.LockingTransaction
       (runInTransaction (fn [] ~@body))))
 
+(defmacro sync_xumm
+  "xumm's sync"
+  {:added "1.0"}
+  [txname & body]
+  `(. clojure.lang.LockingTransaction
+      (runInTransaction (fn [] ~@body) ~txname)))
+
 
 (defmacro io!
   "If an io! block occurs in a transaction, throws an
@@ -4475,6 +4482,12 @@
   {:added "1.0"}
   [& exprs]
   `(sync nil ~@exprs))
+
+(defmacro dosync_xumm
+  "xumm's dosync"
+  {:added "1.0"}
+  [[txname] & exprs]
+  `(sync_xumm ~txname ~@exprs))
 
 (defmacro with-precision
   "Sets the precision and rounding mode to be used for BigDecimal operations.

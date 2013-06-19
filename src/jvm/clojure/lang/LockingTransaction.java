@@ -52,6 +52,14 @@ static class RetryEx extends Error{
 static class AbortException extends Exception{
 }
 
+public LockingTransaction() {}
+private String name;
+public LockingTransaction(String name) {
+    this.name = name;
+}
+    public void setName(String name) {
+        this.name = name;
+    }
 /**
  * transaction信息 
  */
@@ -164,7 +172,7 @@ void tryWriteLock(Ref ref){
 		{
 		if(!ref.lock.writeLock().tryLock(LOCK_WAIT_MSECS, TimeUnit.MILLISECONDS)) 
 		    {
-		    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#tryWriteLock: retry because tryWriteLock timeout");
+		    System.out.println("[" + this.name + "] LockingTransaction#tryWriteLock: retry because tryWriteLock timeout");
 			throw retryex;
 		    }
 		}
@@ -191,7 +199,7 @@ Object lock(Ref ref){
 		unlocked = false;
 
 		if(ref.tvals != null && ref.tvals.point > readPoint) {
-		    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#lock: retry because ref modified after this tx begins");
+		    System.out.println("[" + this.name + "] LockingTransaction#lock: retry because ref modified after this tx begins");
             
 			throw retryex;
 		}
@@ -315,15 +323,29 @@ static LockingTransaction getRunning(){
  * @return
  * @throws Exception
  */
-static public Object runInTransaction(Callable fn) throws Exception{
+static public Object runInTransaction(Callable fn, String name) throws Exception{
 	LockingTransaction t = transaction.get();
-	if(t == null)
-		transaction.set(t = new LockingTransaction());
+	if(t == null) {
+	    if (name == null) {
+	        t = new LockingTransaction();
+	    } else {
+	        t = new LockingTransaction(name);
+	    }
+		transaction.set(t);
+	} else {
+        if (name != null) {
+            t.setName(name);
+        }
+    }
 
 	if(t.info != null)
 		return fn.call();
 
 	return t.run(fn);
+}
+
+static public Object runInTransaction(Callable fn) throws Exception {
+    return runInTransaction(fn, null);
 }
 
 /**
@@ -355,7 +377,7 @@ Object run(Callable fn) throws Exception{
 
 	for(int i = 0; !done && i < RETRY_LIMIT; i++)
 		{
-	    System.out.println("[tx:" + this.hashCode() + "] round:" + i);
+	    System.out.println("[" + this.name + "] round:" + i);
 		try
 			{
 			getReadPoint();
@@ -384,14 +406,14 @@ Object run(Callable fn) throws Exception{
 					try {
 					    tryWriteLock(ref);
 					} catch (RetryEx e1) {
-					    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because cannt get write lock");
+					    System.out.println("[" + this.name + "] LockingTransaction#run: retry because cannt get write lock");
 					    throw e1;
 					}
 					locked.add(ref);
 					
 					// 对于ensure的ref，但是在snapshot之后又有人写了，那么重试
 					if(wasEnsured && ref.tvals != null && ref. tvals.point > readPoint) {
-					    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because ref is ensured but modified by other tx");
+					    System.out.println("[" + this.name + "] LockingTransaction#run: retry because ref is ensured but modified by other tx");
 						throw retryex;
 					}
 
@@ -404,7 +426,7 @@ Object run(Callable fn) throws Exception{
 					if(refinfo != null && refinfo != info && refinfo.running())
 						{
 						if(!barge(refinfo))
-						    System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because other tx are modifing the ref");
+						    System.out.println("[" + this.name + "] LockingTransaction#run: retry because other tx are modifing the ref");
 							throw retryex;
 						}
 					Object val = ref.tvals == null ? null : ref.tvals.val;
@@ -426,7 +448,7 @@ Object run(Callable fn) throws Exception{
                     try {
                         tryWriteLock(ref);
                     } catch (RetryEx e1) {
-                        System.out.println("[tx: " + this.hashCode() + "] LockingTransaction#run: retry because cannt get write lock");
+                        System.out.println("[" + this.name + "] LockingTransaction#run: retry because cannt get write lock");
                         throw e1;
                     }
 					locked.add(ref);
@@ -596,7 +618,7 @@ Object doSet(Ref ref, Object val){
 		try {
 		lock(ref);
 		} catch (RetryEx e) {
-		    System.out.println("[tx:" + this.hashCode() + "] LockingTransaction#doSet: retry because cannt get write lock");
+		    System.out.println("[" + this.name + "] LockingTransaction#doSet: retry because cannt get write lock");
 		    throw e;
 		}
 		}
@@ -620,7 +642,7 @@ void doEnsure(Ref ref){
 	// 如果在我们事务开始之后有人写过这个ref，那么我们释放读锁，并且抛出重试异常
 	if(ref.tvals != null && ref.tvals.point > readPoint) {
         ref.lock.readLock().unlock();
-        System.out.println("[tx:" + this.hashCode() + "] LockingTransaction#doEnsure: retry because ref modified after this tx begins");
+        System.out.println("[" + this.name + "] LockingTransaction#doEnsure: retry because ref modified after this tx begins");
         throw retryex;
     }
 
